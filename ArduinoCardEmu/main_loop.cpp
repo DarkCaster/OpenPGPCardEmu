@@ -1,16 +1,21 @@
 #include "main_loop.h"
 #ifdef STANDALONE_APP
-  #include "standalone_config.h"
-  #include "serial.h"
+    #include "standalone_config.h"
+    #include "serial.h"
+    #include <cstdio>
+#define LOG(format,...) ({printf(format,__VA_ARGS__); fflush(stdout);})
+//#define LOG(format,...) ({})
 #else
-  #include <Arduino.h>
+    #include <Arduino.h>
+    #define LOG(format,...) ({})
 #endif
 
 void setup() {
-    // put your setup code here, to run once:
     Serial.begin(9600);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+    int val=Serial.read();
+    if(val>=0)
+        LOG("COM PORT READ: %d\n", val);
 }
