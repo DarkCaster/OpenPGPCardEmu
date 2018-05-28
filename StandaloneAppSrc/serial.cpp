@@ -82,6 +82,30 @@ size_t SerialDummy::readBytes(char *buffer, size_t length)
     return readCNT;
 }
 
+size_t SerialDummy::write(uint8_t data)
+{
+    DWORD dwNumberOfBytesWritten=0;
+    if(WriteFile(hComm, &data, 1, &dwNumberOfBytesWritten, 0) && dwNumberOfBytesWritten==1)
+        return 1;
+    return 0;
+}
+
+size_t SerialDummy::write(char *buffer, size_t length)
+{
+    if(length==0)
+        return 0;
+    int pos=0;
+    int tx=write(*(buffer+pos));
+    while(tx>0 && length>0)
+    {
+        pos++;
+        length--;
+        if(length>0)
+            tx=write(*(buffer+pos));
+    }
+    return pos;
+}
+
 int SerialDummy::available(void)
 {
     COMSTAT comStat;

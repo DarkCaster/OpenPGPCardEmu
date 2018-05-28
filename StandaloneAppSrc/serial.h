@@ -29,11 +29,13 @@ public:
     size_t readBytes(uint8_t *buffer, size_t length) { return readBytes((char *)buffer, length); }
     int availableForWrite(void);
     void flush(void);
-    size_t write(uint8_t);
+    size_t write(uint8_t data);
     size_t write(unsigned long n) { return write((uint8_t)n); }
     size_t write(long n) { return write((uint8_t)n); }
     size_t write(unsigned int n) { return write((uint8_t)n); }
     size_t write(int n) { return write((uint8_t)n); }
+    size_t write(char *buffer, size_t length);
+    size_t write(char *buffer) { return write(buffer,strlen(buffer)); }
     operator bool() { return true; }
 };
 
