@@ -42,6 +42,7 @@ message(STATUS "CMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 
 include_directories("${CMAKE_BINARY_DIR}")
 include_directories("ArduinoCardEmu")
+include_directories("StandaloneAppSrc")
 
 #set flags for gcc
 if(CMAKE_COMPILER_IS_GNUCXX)
