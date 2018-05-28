@@ -41,6 +41,7 @@ message(STATUS "CMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 message(STATUS "CMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 include_directories("${CMAKE_BINARY_DIR}")
+include_directories("ArduinoCardEmu")
 
 #set flags for gcc
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -48,7 +49,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   #optional flags for g++ compiler
   set(OPTFLAGS "-pedantic")
   #general compiler flags for g++ compiler
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fpermissive -fno-exceptions -Wall -Wextra -Wshadow -Wstrict-overflow=5 -Wwrite-strings -Winit-self -Wmissing-include-dirs -Wcast-qual -Wcast-align -Wconversion -Wlogical-op -Wmissing-declarations -Wpacked -Wredundant-decls -Winline -Wdisabled-optimization -Woverlength-strings -Wfloat-equal -Wswitch-default ${OPTFLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fpermissive -fno-exceptions -Wall -Wextra -Wshadow -Wstrict-overflow=5 -Wwrite-strings -Winit-self -Wmissing-include-dirs -Wcast-qual -Wcast-align -Wconversion -Wlogical-op -Wpacked -Wredundant-decls -Winline -Wdisabled-optimization -Woverlength-strings -Wfloat-equal -Wswitch-default ${OPTFLAGS}")
   #set build-type dependent additional flags
   set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
   set(CMAKE_CXX_FLAGS_DEBUG "-O0 -DDEBUG -ggdb")
@@ -56,13 +57,21 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 add_definitions(-DSTANDALONE_APP)
+
+if(WIN32)
+  set(BUILD_PLATFORM "WINDOWS")
+elseif(LINUX)
+  set(BUILD_PLATFORM "LINUX")
+else()
+  message(FATAL_ERROR "This platform is not supported!")
+endif ()
+
 #check include files
 include(CheckIncludeFile)
 include(CheckSymbolExists)
-###check_include_file(inttypes.h HAVE_INTTYPES_H)
 
 #save module configuration to config.h
-configure_file(StandaloneAppSrc/config.h.in config.h)
+configure_file(StandaloneAppSrc/config.h.in standalone_config.h)
 
 #qt creator trick
 if(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
