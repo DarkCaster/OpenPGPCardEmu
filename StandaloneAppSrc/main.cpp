@@ -1,3 +1,8 @@
+#include "standalone_config.h"
+#include "main_loop.h"
+
+#if BUILD_PLATFORM==WINDOWS
+
 #include <windows.h>
 #include <tchar.h>
 #include <iostream>
@@ -5,30 +10,8 @@
 #include <cstdio>
 #include <chrono>
 #include <thread>
-#include "standalone_config.h"
-#include "main_loop.h"
-
-BOOL WINAPI ConsoleHandler(DWORD dwCtrlType);
 
 static volatile boolean hangup=false;
-
-int main()
-{
-    if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE) == FALSE)
-    {
-        printf("Unable to install handler!\n");
-        return -1;
-    }
-    printf("Starting main loop\n");
-    fflush(stdout);
-    while(!hangup)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        loop();
-    }
-    printf("Exit\n");
-    return 0;
-}
 
 BOOL WINAPI ConsoleHandler(DWORD CEvent)
 {
@@ -46,4 +29,28 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
         break;
     }
     return TRUE;
+}
+
+#endif //BUILD_PLATFORM==WINDOWS
+
+int main()
+{
+#if BUILD_PLATFORM==WINDOWS
+    if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE) == FALSE)
+    {
+        printf("Unable to install handler!\n");
+        return -1;
+    }
+    printf("Starting main loop\n");
+    fflush(stdout);
+    while(!hangup)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        loop();
+    }
+    printf("Exit\n");
+#else //BUILD_PLATFORM==WINDOWS
+#error This platform is not supported for now
+#endif
+    return 0;
 }
