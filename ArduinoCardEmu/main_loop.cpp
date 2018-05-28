@@ -1,8 +1,12 @@
 #include "main_loop.h"
+#ifdef STANDALONE_APP
+#include "config.h"
+#include "serial.h"
+#endif
 
 void setup() {
-  // put your setup code here, to run once:
-
+    // put your setup code here, to run once:
+    Serial.begin(9600);
 }
 
 void loop() {
