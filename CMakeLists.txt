@@ -48,7 +48,7 @@ include_directories("StandaloneAppSrc")
 if(CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
   #optional flags for g++ compiler
-  set(OPTFLAGS "-pedantic")
+  set(OPTFLAGS "")
   #general compiler flags for g++ compiler
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -fpermissive -fno-exceptions -Wall -Wextra -Wshadow -Wstrict-overflow=5 -Wwrite-strings -Winit-self -Wmissing-include-dirs -Wcast-qual -Wcast-align -Wconversion -Wlogical-op -Wpacked -Wredundant-decls -Winline -Wdisabled-optimization -Woverlength-strings -Wfloat-equal -Wswitch-default -Wno-missing-field-initializers ${OPTFLAGS}")
   #set build-type dependent additional flags
