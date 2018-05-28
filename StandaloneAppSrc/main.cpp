@@ -19,11 +19,15 @@ int main()
         printf("Unable to install handler!\n");
         return -1;
     }
-    printf("starting main loop\n");
+    printf("Starting main loop\n");
+    fflush(stdout);
     while(!hangup)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        loop();
     }
+    printf("Exit\n");
+    return 0;
 }
 
 BOOL WINAPI ConsoleHandler(DWORD CEvent)
@@ -36,6 +40,7 @@ BOOL WINAPI ConsoleHandler(DWORD CEvent)
     case CTRL_LOGOFF_EVENT:
     case CTRL_SHUTDOWN_EVENT:
         hangup=true;
+        printf("Hangup...\n");
         break;
     default:
         break;
