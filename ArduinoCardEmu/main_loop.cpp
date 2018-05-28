@@ -1,6 +1,6 @@
 #include "main_loop.h"
 #ifdef STANDALONE_APP
-  #include "config.h"
+  #include "standalone_config.h"
   #include "serial.h"
 #else
   #include <Arduino.h>
