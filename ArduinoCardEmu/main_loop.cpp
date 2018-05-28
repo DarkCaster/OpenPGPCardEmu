@@ -1,7 +1,9 @@
 #include "main_loop.h"
 #ifdef STANDALONE_APP
-#include "config.h"
-#include "serial.h"
+  #include "config.h"
+  #include "serial.h"
+#else
+  #include <Arduino.h>
 #endif
 
 void setup() {
