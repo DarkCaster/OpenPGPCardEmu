@@ -41,6 +41,8 @@ int main()
         printf("Unable to install handler!\n");
         return -1;
     }
+    printf("Running setup\n");
+    setup();
     printf("Starting main loop\n");
     fflush(stdout);
     while(!hangup)
