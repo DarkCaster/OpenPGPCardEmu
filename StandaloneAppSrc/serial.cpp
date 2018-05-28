@@ -16,15 +16,18 @@ void SerialDummy::begin(unsigned long baud)
     printf("Serial port opened\n");
     fflush(stdout);
     dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    if(!GetCommState(hComm, &dcbSerialParams))
+    {
+        printf("Error getting comm state: %lu\n",GetLastError());
+        return;
+    }
     dcbSerialParams.BaudRate = baud;
     dcbSerialParams.ByteSize = 8;
     dcbSerialParams.Parity   = NOPARITY;
     dcbSerialParams.StopBits = ONESTOPBIT;
-    dcbSerialParams.fBinary = TRUE;
-    dcbSerialParams.fParity = TRUE;
     if(!SetCommState(hComm, &dcbSerialParams))
     {
-        printf("Error setting comm state\n");
+        printf("Error setting comm state: %lu\n",GetLastError());
         return;
     }
     if(GetCommTimeouts(hComm, &commTimeout))
