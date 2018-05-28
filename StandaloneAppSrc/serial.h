@@ -16,7 +16,8 @@ class SerialDummy
 private:
 #if BUILD_PLATFORM==WINDOWS
     HANDLE hComm;
-    DCB dcbSerialParams;
+    DCB dcbSerialParams = { 0 };
+    COMMTIMEOUTS commTimeout = { 0 };
 #endif
 public:
     void begin(unsigned long baud);
@@ -24,6 +25,8 @@ public:
     int available(void);
     int peek(void);
     int read(void);
+    size_t readBytes(char *buffer, size_t length);
+    size_t readBytes(uint8_t *buffer, size_t length) { return readBytes((char *)buffer, length); }
     int availableForWrite(void);
     void flush(void);
     size_t write(uint8_t);
