@@ -16,6 +16,8 @@ void setup() {
 }
 
 void loop() {
+    if(!Serial.available())
+        return;
     int val=Serial.read();
     if(val>=0)
     {
@@ -24,3 +26,5 @@ void loop() {
             LOG("COM PORT WRITE FAILED!\n");
     }
 }
+
+
