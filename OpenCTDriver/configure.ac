@@ -397,8 +397,6 @@ AM_CONDITIONAL([ENABLE_PCSC], [test "${enable_pcsc}" = "yes"])
 
 AC_CONFIG_FILES([
 	Makefile
-	doc/Makefile
-	doc/doxygen.conf
 	etc/Makefile
 	macos/Makefile
 	src/Makefile

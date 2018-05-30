@@ -14,10 +14,10 @@ MAINTAINERCLEANFILES = \
 	$(srcdir)/packaged
 EXTRA_DIST = .gitignore
 
-SUBDIRS = etc macos src doc
+SUBDIRS = etc macos src
 
 dist_noinst_SCRIPTS = bootstrap
-dist_noinst_DATA = LGPL-2.1 TODO \
+dist_noinst_DATA = TODO \
 	solaris/Makefile.client solaris/Makefile.server solaris/README \
 	solaris/checkinstall.in solaris/devices-openct-fabric.xml-dist \
 	solaris/openct-fabric-dist solaris/openct-hotplug-dist \
