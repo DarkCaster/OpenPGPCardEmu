@@ -1,0 +1,25 @@
+HOMEPAGE="https://pcsclite.apdu.fr/"
+SRC_URI="https://pcsclite.apdu.fr/files/${P}.tar.bz2"
+CATEGORY="Libs"
+SUMMARY="PCSC Lite build for cygwin"
+DESCRIPTION="PCSC Lite build for cygwin"
+CYGCONF_ARGS="--disable-static --enable-serial --disable-usb --disable-libusb --disable-libudev --disable-usbdropdir --disable-libsystemd --disable-polkit"
+PKG_NAMES="
+	${PN}
+	${PN}-devel
+"
+pcsc_lite_CONTENTS="
+	usr/sbin
+	usr/share/doc
+	usr/share/man/man[58]
+	usr/bin/cygpcsclite*.dll
+"
+pcsc_lite_devel_CONTENTS="
+	usr/bin/pcsc-spy
+	usr/bin/cygpcscspy*.dll
+	usr/include
+	usr/lib
+	usr/share/man/man1
+"
+pcsc_lite_SUMMARY="${SUMMARY} (utilities)"
+pcsc_lite_devel_SUMMARY="${SUMMARY} (development)"
