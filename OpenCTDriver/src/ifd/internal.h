@@ -117,28 +117,7 @@ extern struct ifd_protocol_ops ifd_protocol_3wire;
 extern struct ifd_protocol_ops ifd_protocol_eurochip;
 extern struct ifd_protocol_ops ifd_protocol_esc;
 
-extern void ifd_acr30u_register(void);
-extern void ifd_cardman_register(void);
-extern void ifd_ccid_register(void);
-extern void ifd_cm4000_register(void);
-extern void ifd_egate_register(void);
-extern void ifd_epass3k_register(void);
-extern void ifd_etoken_register(void);
-extern void ifd_etoken64_register(void);
-extern void ifd_eutron_register(void);
-extern void ifd_gempc_register(void);
-extern void ifd_ikey2k_register(void);
-extern void ifd_ikey3k_register(void);
-extern void ifd_kaan_register(void);
-extern void ifd_pertosmart_ac1030_register(void);
-extern void ifd_pertosmart_ac1038_register(void);
-extern void ifd_smartboard_register(void);
-extern void ifd_smph_register(void);
-extern void ifd_starkey_register(void);
-extern void ifd_towitoko_register(void);
-/* extern void ifd_wbeiuu_register(void); driver not working yet */
-extern void ifd_cyberjack_register(void);
-extern void ifd_rutoken_register(void);
+extern void ifd_cardemu_register(void);
 
 /* reader.c */
 extern int ifd_error(ifd_reader_t *);

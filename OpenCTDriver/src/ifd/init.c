@@ -23,30 +23,8 @@ int ifd_init(void)
 		ct_error("lt_dlinit returned %d", i);
 
 	/* Register built-in drivers */
-	ifd_acr30u_register();
-	ifd_cardman_register();
-	ifd_cm4000_register();
-	ifd_egate_register();
-	ifd_epass3k_register();
-	ifd_etoken_register();
-	ifd_etoken64_register();
-	ifd_eutron_register();
-	ifd_gempc_register();
-	ifd_ikey2k_register();
-	ifd_ikey3k_register();
-	ifd_kaan_register();
-	ifd_pertosmart_ac1030_register();
-	ifd_pertosmart_ac1038_register();
-	ifd_smartboard_register();
-	ifd_smph_register();
-	ifd_starkey_register();
-	ifd_towitoko_register();
-	ifd_rutoken_register();
-	/* ifd_wbeiuu_register();	driver not working yet */
-	ifd_cyberjack_register();	
-	/* ccid last */
-	ifd_ccid_register();
-
+	ifd_cardemu_register();
+	
 	/* Register all builtin protocols */
 	ifd_protocol_register(&ifd_protocol_t0);
 	ifd_protocol_register(&ifd_protocol_t1);
