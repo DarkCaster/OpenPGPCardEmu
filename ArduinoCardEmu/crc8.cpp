@@ -1,4 +1,14 @@
+#ifdef STANDALONE_APP
+
+#include "arduino-defines.h"
+#include <cstdint>
+
+#else
+
 #include <Arduino.h>
+
+#endif
+
 #include "crc8.h"
 
 static const PROGMEM uint8_t Crc8Table[256] = {
