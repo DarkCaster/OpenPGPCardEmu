@@ -16,11 +16,13 @@
 
 #endif
 
-void setup() {
-    Serial.begin(9600);
+void setup()
+{
+    Serial.begin(250000);
 }
 
-void loop() {
+void loop()
+{
     if(!Serial.available())
         return;
     int val=Serial.read();
