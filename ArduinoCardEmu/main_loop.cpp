@@ -24,21 +24,21 @@ void resync()
 
 void setup()
 {
-    Serial.begin(250000);
-    resync();
+  Serial.begin(250000);
+  resync();
 }
 
 void loop()
 {
-    if(!Serial.available())
-        return;
-    int val=Serial.read();
-    if(val>=0)
-    {
-        LOG("COM PORT READ: %d\n", val);
-        if(!Serial.write(val))
-            LOG("COM PORT WRITE FAILED!\n");
-    }
+  if(!Serial.available())
+    return;
+  int val=Serial.read();
+  if(val>=0)
+  {
+    LOG("COM PORT READ: %d\n", val);
+    if(!Serial.write(val))
+      LOG("COM PORT WRITE FAILED!\n");
+  }
 }
 
 
