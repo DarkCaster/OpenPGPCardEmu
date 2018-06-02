@@ -11,14 +11,21 @@
 #else
 
 #include <Arduino.h>
-#include "crc8.h"
 #define LOG(...) ({})
 
 #endif
 
+#include "comm_helper.h"
+
+void resync()
+{
+
+}
+
 void setup()
 {
     Serial.begin(250000);
+    resync();
 }
 
 void loop()
