@@ -16,7 +16,7 @@
 #include "comm_helper.h"
 #include "crc8.h"
 
-int8_t comm_header_decode(const uint8_t * const cmdBuff)
+uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 {
   //decode and check remaining message size
   int8_t remSz = (*cmdBuff) & CMD_SIZE_MASK;
@@ -37,12 +37,14 @@ int8_t comm_header_decode(const uint8_t * const cmdBuff)
       break;
     case REQ_CARD_SEND:
     case REQ_CARD_RESPOND:
-    case REQ_RESYNC:
       if(remSz==CMD_MIN_REMSZ)
       {
-        LOG("comm_header_decode: zero data size for send\respond\resync request: 0x%02X)\n",req);
+        LOG("comm_header_decode: zero data size for send\respond request: 0x%02X)\n",req);
         return 0;
       }
+      break;
+    case REQ_RESYNC:
+    case REQ_RESYNC_COMPLETE:
       break;
     default:
       LOG("comm_header_decode: invalid request received: 0x%02X)\n",req);
@@ -51,7 +53,7 @@ int8_t comm_header_decode(const uint8_t * const cmdBuff)
   return remSz;
 }
 
-int8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize )
+uint8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize )
 {
   if(cmdSize<1)
     return 0;
