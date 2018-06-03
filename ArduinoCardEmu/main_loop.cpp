@@ -46,14 +46,18 @@ void resync()
   //TODO: create and send ANS_RESYNC response, status=-1
   #define RESYNC_FAILED() \
   ({\
+    LOG("resync: RESYNC_FAILED (sending)\n");\
     auto msgLen=comm_message(commBuffer,ANS_RESYNC,commBuffer+CMD_HDR_SIZE,0);\
     for(uint8_t i=0; i<msgLen; ++i) \
       while(Serial.write(commBuffer[i])<1) {} \
+    LOG("resync: RESYNC_FAILED (sent)\n");\
   })
   if(status>0)
     return;
   if(status==0)
     status--;
+  if(!Serial.available())
+    return;
   //read header
   Serial.readBytes(commBuffer,1);
   //check header
@@ -132,8 +136,6 @@ void setup()
 
 void loop()
 {
-  if(!Serial.available())
-    return;
   //try to perform resync
   resync();
   //TODO: read request
