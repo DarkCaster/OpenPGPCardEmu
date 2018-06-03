@@ -61,3 +61,29 @@ uint8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize )
     return 0;
   return 1;
 }
+
+uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen)
+{
+  if(plLen>CMD_MAX_PLSZ)
+    return 0;
+  //place data to cmdBuff, payload buffer may overlap with cmdBuff
+  if(payload!=cmdBuff+CMD_HDR_SIZE)
+  {
+    if(payload>cmdBuff+CMD_HDR_SIZE)
+      for(uint8_t i=0; i<plLen; ++i)
+        *(cmdBuff+CMD_HDR_SIZE+i)=*(payload+i);
+    else
+      for(uint8_t i=plLen; i>0; --i)
+        *(cmdBuff+CMD_HDR_SIZE+i-1)=*(payload+i-1);
+  }
+  //write header
+#ifdef CMD_HDR_SIZE_IS_1
+  *cmdBuff=(uint8_t)(cmdMask|plLen);
+#else
+#error unsupporned CMD_HDR_SIZE
+#endif
+  //write crc
+  auto cmdLen=(uint8_t)(plLen+CMD_HDR_SIZE);
+  *(cmdBuff+cmdLen)=CRC8(cmdBuff,cmdLen);
+  return (uint8_t)(cmdLen+CMD_CRC_SIZE);
+}
