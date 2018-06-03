@@ -23,7 +23,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
   if(remSz<CMD_MIN_REMSZ||remSz>CMD_MAX_REMSZ)
     return 0;
   //check header against supported commands list
-  uint8_t req=*cmdBuff & REQ_ALL_MASK;
+  uint8_t req=comm_get_req_mask(cmdBuff);
   switch(req)
   {
     case REQ_CARD_STATUS:
@@ -55,7 +55,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 
 uint8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize )
 {
-  if(cmdSize<1)
+  if(cmdSize<2)
     return 0;
   if(*(cmdBuff+cmdSize-1)!=CRC8(cmdBuff,(uint8_t)(cmdSize-1)))
     return 0;
