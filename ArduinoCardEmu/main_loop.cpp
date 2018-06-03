@@ -3,6 +3,7 @@
 #ifdef STANDALONE_APP
 
 #include "standalone_config.h"
+#include "arduino-defines.h"
 #include "serial.h"
 #include <cstdio>
 #define LOG(...) ({printf(__VA_ARGS__); fflush(stdout);})
@@ -51,8 +52,19 @@ void resync()
     //if request is resync complete
     if(req==REQ_RESYNC_COMPLETE)
     {
-      //TODO: read remaining data, check for timeout
+      //read remaining data, check for timeout
       uint8_t timeout=0;
+      auto startTime=millis();
+      auto rem=remLen;
+      while(rem>0)
+      {
+        rem-=Serial.readBytes(commBuffer+CMD_HDR_SIZE+(remLen-rem),rem);
+        if(millis()-startTime>CMD_TIMEOUT)
+        {
+          timeout=1;
+          break;
+        }
+      }
       //verify, if verification failed or timeout fired - send ANS_RESYNC, status==-1, return
       if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
       {
