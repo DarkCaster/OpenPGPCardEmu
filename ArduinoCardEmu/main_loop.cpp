@@ -31,6 +31,7 @@ static int8_t status = 0;
     rem-=static_cast<decltype(rem)>(Serial.readBytes(commBuffer+CMD_HDR_SIZE+(remLen-rem),rem));\
     if(millis()-startTime>CMD_TIMEOUT)\
     {\
+      LOG("READ_REMAINING: timeout\n");\
       timeout=1;\
       break;\
     }\
