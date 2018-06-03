@@ -112,7 +112,7 @@ int SerialDummy::available(void)
     DWORD   dwErrors;
     // Get and clear current errors on the port.
     if (!ClearCommError(hComm, &dwErrors, &comStat))
-        return -1;
+        return 0;
     if (comStat.cbInQue)
         return comStat.cbInQue;
     return 0;
