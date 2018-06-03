@@ -53,7 +53,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
   return remSz;
 }
 
-uint8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize )
+uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
 {
   if(cmdSize<2)
     return 0;

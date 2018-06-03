@@ -47,7 +47,7 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 uint8_t comm_header_decode(const uint8_t * const cmdBuff);
 
 // return 0 - verification error, 1 - ok
-uint8_t comm_verify(const uint8_t * const cmdBuff, const int8_t cmdSize );
+uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize );
 
 uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen);
 
