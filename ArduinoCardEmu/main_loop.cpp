@@ -26,8 +26,11 @@ void resync()
   //TODO: create and send ANS_RESYNC response, status=-1
   #define RESYNC_FAILED() \
   ({\
-    comm_message(commBuffer,ANS_RESYNC,commBuffer+CMD_HDR_SIZE,0);\
+    auto msgLen=comm_message(commBuffer,ANS_RESYNC,commBuffer+CMD_HDR_SIZE,0);\
+    for(uint8_t i=0; i<msgLen; ++i) \
+      while(Serial.write(commBuffer[i])<1) {} \
   })
+
   if(status>0)
     return;
   if(status==0)
@@ -48,14 +51,18 @@ void resync()
     //if request is resync complete
     if(req==REQ_RESYNC_COMPLETE)
     {
-      //TODO: read remaining data
-      //verify, if verification failed - send ANS_RESYNC, status==-1, return
-      if(!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
+      //TODO: read remaining data, check for timeout
+      uint8_t timeout=0;
+      //verify, if verification failed or timeout fired - send ANS_RESYNC, status==-1, return
+      if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
       {
         RESYNC_FAILED();
         return;
       }
-      //TODO: send ANS_OK
+      //send ANS_OK
+      auto msgLen=comm_message(commBuffer,ANS_OK,commBuffer+CMD_HDR_SIZE,0);
+      for(uint8_t i=0; i<msgLen; ++i)
+        while(Serial.write(commBuffer[i])<1) {}
       //resync complete!
       status=1;
       return;
@@ -65,22 +72,27 @@ void resync()
   }
   if(status==-1)
   {
-    //TODO: check header type
-    //TODO: if header is not RESYNC, send ANS_RESYNC with 0 bytes payload, return
-    if(0)
+    //if header is not RESYNC, send ANS_RESYNC with 0 bytes payload, return
+    if(req!=REQ_RESYNC)
     {
       RESYNC_FAILED();
       return;
     }
     //TODO: read remaining data, check for timeout
-    //TODO: if timeout fired or checksum is invalid - send ANS_RESYNC with 0 bytes payload, return
-    if(0)
+    uint8_t timeout=0;
+    //if timeout fired or checksum is invalid - send ANS_RESYNC with 0 bytes payload, return
+    if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
     {
       RESYNC_FAILED();
       return;
     }
-    //TODO: create resync answer + checksum
-    //TODO: send answer to serial
+    //create resync answer (with checksum)
+    auto plLen=comm_get_payload_size(remLen);
+    auto payload=comm_get_payload(commBuffer);
+    //send answer to serial
+    auto msgLen=comm_message(commBuffer,ANS_RESYNC,payload,plLen);
+    for(uint8_t i=0; i<msgLen; ++i)
+      while(Serial.write(commBuffer[i])<1) {}
     status--;
   }
   else
