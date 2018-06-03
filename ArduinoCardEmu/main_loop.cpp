@@ -24,7 +24,7 @@ static int8_t status = 0;
 void resync()
 {
   //TODO: create and send ANS_RESYNC response, status=-1
-  #define RESYNC_FAILED() ({})
+  #define RESYNC_FAILED() ({comm_message(commBuffer,ANS_RESYNC,commBuffer+CMD_HDR_SIZE,0);})
   if(status>0)
     return;
   if(status==0)
@@ -38,16 +38,16 @@ void resync()
     RESYNC_FAILED();
     return;
   }
+  auto req=comm_get_req_mask(commBuffer);
   if(status==-2)
   {
     //awaiting for resync complete request
-    //TODO: if request is resync complete
-    if(0)
+    //if request is resync complete
+    if(req==REQ_RESYNC_COMPLETE)
     {
       //TODO: read remaining data
-      //TODO: verify
-      //TODO: if verification failed - send ANS_RESYNC, status==-1, return
-      if(0)
+      //verify, if verification failed - send ANS_RESYNC, status==-1, return
+      if(!comm_verify(commBuffer,remLen+CMD_HDR_SIZE))
       {
         RESYNC_FAILED();
         return;
