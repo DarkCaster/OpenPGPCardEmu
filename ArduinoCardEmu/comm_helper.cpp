@@ -19,11 +19,14 @@
 uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 {
   //decode and check remaining message size
-  int8_t remSz = (*cmdBuff) & CMD_SIZE_MASK;
+  uint8_t remSz = *cmdBuff & CMD_SIZE_MASK;
   if(remSz<CMD_MIN_REMSZ||remSz>CMD_MAX_REMSZ)
+  {
+    LOG("comm_header_decode: remaining data size is out of bounds\n");
     return 0;
+  }
   //check header against supported commands list
-  uint8_t req=comm_get_req_mask(cmdBuff);
+  auto req=comm_get_req_mask(cmdBuff);
   switch(req)
   {
     case REQ_CARD_STATUS:
@@ -56,7 +59,10 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
 {
   if(cmdSize<2)
+  {
+    LOG("comm_verify: invalid cmdSize\n");
     return 0;
+  }
   if(*(cmdBuff+cmdSize-1)!=CRC8(cmdBuff,(uint8_t)(cmdSize-1)))
     return 0;
   return 1;
