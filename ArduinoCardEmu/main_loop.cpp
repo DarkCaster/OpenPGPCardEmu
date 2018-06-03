@@ -22,6 +22,25 @@ static uint8_t commBuffer[CMD_BUFF_SIZE];
 
 static int8_t status = 0;
 
+#define READ_REMAINING(remLen,timeout) \
+({\
+  auto startTime=millis();\
+  auto rem=remLen;\
+  while(rem>0)\
+  {\
+    rem-=static_cast<decltype(rem)>(Serial.readBytes(commBuffer+CMD_HDR_SIZE+(remLen-rem),rem));\
+    if(millis()-startTime>CMD_TIMEOUT)\
+    {\
+      timeout=1;\
+      break;\
+    }\
+  }\
+})
+
+#if STANDALONE_APP
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+
 void resync()
 {
   //TODO: create and send ANS_RESYNC response, status=-1
@@ -31,7 +50,6 @@ void resync()
     for(uint8_t i=0; i<msgLen; ++i) \
       while(Serial.write(commBuffer[i])<1) {} \
   })
-
   if(status>0)
     return;
   if(status==0)
@@ -54,17 +72,7 @@ void resync()
     {
       //read remaining data, check for timeout
       uint8_t timeout=0;
-      auto startTime=millis();
-      auto rem=remLen;
-      while(rem>0)
-      {
-        rem-=Serial.readBytes(commBuffer+CMD_HDR_SIZE+(remLen-rem),rem);
-        if(millis()-startTime>CMD_TIMEOUT)
-        {
-          timeout=1;
-          break;
-        }
-      }
+      READ_REMAINING(remLen,timeout);
       //verify, if verification failed or timeout fired - send ANS_RESYNC, status==-1, return
       if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
       {
@@ -90,8 +98,9 @@ void resync()
       RESYNC_FAILED();
       return;
     }
-    //TODO: read remaining data, check for timeout
+    //read remaining data, check for timeout
     uint8_t timeout=0;
+    READ_REMAINING(remLen,timeout);
     //if timeout fired or checksum is invalid - send ANS_RESYNC with 0 bytes payload, return
     if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
     {
@@ -111,6 +120,10 @@ void resync()
     //invalid status
     RESYNC_FAILED();
 }
+
+#if STANDALONE_APP
+#pragma GCC diagnostic pop
+#endif
 
 void setup()
 {
