@@ -7,16 +7,16 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 }
 
 // command buffer sizes
-#define CMD_HDR_SIZE 1
+#define CMD_HDR_SIZE 1_u8
 #define CMD_HDR_SIZE_IS_1
-#define CMD_CRC_SIZE 1
+#define CMD_CRC_SIZE 1_u8
 #define CMD_BUFF_SIZE 16 //1 byte - header, up to 14 bytes - payload, 1 byte - crc8 checksum
 #define CMD_TIMEOUT 2000 //timeout for reading command payload
 
 #define CMD_SIZE_MASK 0x1F_u8
-#define CMD_MAX_REMSZ 15
-#define CMD_MIN_REMSZ 1
-#define CMD_MAX_PLSZ  14
+#define CMD_MAX_REMSZ 15_u8
+#define CMD_MIN_REMSZ 1_u8
+#define CMD_MAX_PLSZ  14_u8
 
 // requests (masks)
 #define REQ_ALL_MASK 0xE0_u8
