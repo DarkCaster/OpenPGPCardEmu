@@ -60,7 +60,8 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 #define CMD_CRC_SIZE 1
 #define CMD_CRC_SIZE_IS_1
 #define CMD_BUFF_SIZE 16
-#define CMD_TIMEOUT 2000
+#define CMD_TIMEOUT 500
+#define MAX_RESYNC_TRIES 10
 
 #define CMD_SIZE_MASK 0x1F
 #define CMD_MAX_REMSZ 15
@@ -93,7 +94,7 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 #define comm_get_ans_mask(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & ANS_ALL_MASK))
 
 // return 0 - transmission error, >0 - payload size + CRC size
-uint8_t comm_header_decode(const uint8_t * const cmdBuff)
+static uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 {
   //decode and check remaining message size
   uint8_t remSz = *cmdBuff & CMD_SIZE_MASK;
@@ -124,7 +125,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
 }
 
 // return 0 - verification error, 1 - ok
-uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
+static uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
 {
   if(cmdSize<(CMD_HDR_SIZE+CMD_CRC_SIZE))
     return 0;
@@ -137,7 +138,7 @@ uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
   return 1;
 }
 
-uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen)
+static uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen)
 {
   if(plLen>CMD_MAX_PLSZ)
     return 0;
@@ -163,7 +164,55 @@ uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8
   return (uint8_t)(cmdLen+CMD_CRC_SIZE);
 }
 
+// 0 - timeout, or other error, >0 - actual bytes read
+static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const uint8_t offset, const uint8_t len)
+{
+    uint8_t i;
+    for (i = 0; i < len; i++)
+    {
+        int n = ifd_device_recv(dev, buffer+offset+i, 1, CMD_TIMEOUT);
+        if (n == IFD_ERROR_TIMEOUT)
+            break;
+        if (n == -1)
+            return 0;
+    }
+    ifd_debug(3, "comm_recv: %s", ct_hexdump(buffer, len));
+    return i;
+}
 
+// 0 - timeout, >0 - actual bytes written
+static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer, const uint8_t offset, const uint8_t len)
+{
+    ifd_debug(3, "cardemu_send: %s", ct_hexdump(buffer, len));
+    uint8_t i;
+    for (i = 0; i<len; i++)
+    {
+        if (write(dev->fd,buffer+offset+i,1) < 1)
+            return i;
+        tcdrain(dev->fd);
+    }
+    return i;
+}
+
+//0 error, 1 - ok
+uint8_t resync()
+{
+    //send empty resync command
+
+
+
+    //==until resync complete:
+    //read data until timeout
+    //send empty resync command
+    //read empty resync response
+    //generate control-sequence
+    //send resync command with control sequence
+    //read back resync-answer with control sequence
+    //compare it
+    //return 1
+    //==until
+    return 0;
+}
 
 
 
