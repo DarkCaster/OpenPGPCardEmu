@@ -5,8 +5,6 @@
 #include <termios.h>
 #include <sys/poll.h>
 
-#define TIMEOUT	1000
-
 static struct ifd_driver_ops cardemu_driver = { 0 };
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout);
 
@@ -62,6 +60,7 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 #define CMD_BUFF_SIZE 16
 #define CMD_TIMEOUT 500
 #define MAX_RESYNC_TRIES 10
+#define MAX_RESYNC_GARBAGE 32
 
 #define CMD_SIZE_MASK 0x1F
 #define CMD_MAX_REMSZ 15
@@ -165,12 +164,12 @@ static uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, cons
 }
 
 // 0 - timeout, or other error, >0 - actual bytes read
-static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const uint8_t offset, const uint8_t len)
+static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const uint8_t len)
 {
     uint8_t i;
     for (i = 0; i < len; i++)
     {
-        int n = ifd_device_recv(dev, buffer+offset+i, 1, CMD_TIMEOUT);
+        int n = ifd_device_recv(dev, buffer+i, 1, CMD_TIMEOUT);
         if (n == IFD_ERROR_TIMEOUT)
             break;
         if (n == -1)
@@ -181,13 +180,13 @@ static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const
 }
 
 // 0 - timeout, >0 - actual bytes written
-static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer, const uint8_t offset, const uint8_t len)
+static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer, const uint8_t len)
 {
     ifd_debug(3, "cardemu_send: %s", ct_hexdump(buffer, len));
     uint8_t i;
     for (i = 0; i<len; i++)
     {
-        if (write(dev->fd,buffer+offset+i,1) < 1)
+        if (write(dev->fd,buffer+i,1) < 1)
             return i;
         tcdrain(dev->fd);
     }
@@ -195,22 +194,56 @@ static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer,
 }
 
 //0 error, 1 - ok
-uint8_t resync()
+uint8_t resync(ifd_device_t * const dev)
 {
-    //send empty resync command
-
-
-
-    //==until resync complete:
-    //read data until timeout
-    //send empty resync command
-    //read empty resync response
-    //generate control-sequence
-    //send resync command with control sequence
-    //read back resync-answer with control sequence
-    //compare it
-    //return 1
-    //==until
+    uint8_t resyncBuff[CMD_BUFF_SIZE];
+    for(int i=0; i<MAX_RESYNC_TRIES; ++i)
+    {
+        //send empty resync command
+        uint8_t msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
+        if(!comm_send(dev,resyncBuff,msgLen))
+            continue;
+        //read data until timeout
+        int g;
+        for(g=0; g<MAX_RESYNC_GARBAGE; ++g)
+            if(!comm_recv(dev,resyncBuff,1))
+                break;
+        if(g>=MAX_RESYNC_GARBAGE)
+            continue;
+        //send empty resync command
+        msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
+        if(!comm_send(dev,resyncBuff,msgLen))
+            continue;
+        //read empty resync response
+        if(!comm_recv(dev,resyncBuff,CMD_HDR_SIZE))
+            continue;
+        uint8_t remLen=comm_header_decode(resyncBuff);
+        if(!remLen)
+            continue;
+        if(comm_get_ans_mask(resyncBuff)!=ANS_RESYNC)
+            continue;
+        if(remLen!=CMD_CRC_SIZE)
+            continue;
+        uint8_t rem=remLen;
+        while(rem>0)
+        {
+            uint8_t dr=comm_recv(dev,resyncBuff+CMD_HDR_SIZE+(remLen-rem),rem);
+            if(!dr)
+                break;
+            remLen-=dr;
+        }
+        if(rem>0)
+            continue;
+        if(!comm_verify(resyncBuff,remLen+CMD_HDR_SIZE))
+            continue;
+        //generate control-sequence
+        //send resync command with control sequence
+        //read back resync-answer with control sequence
+        //compare it
+        //return 1
+        //==until
+    }
+    ifd_debug(3, "resync failed!");
     return 0;
 }
 
@@ -366,7 +399,7 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
         return -1;
     }
     dev->user_data = NULL;
-    dev->timeout = TIMEOUT;
+    dev->timeout = CMD_TIMEOUT;
     return 0;
 }
 
