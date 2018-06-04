@@ -292,6 +292,62 @@ uint8_t resync(ifd_device_t * const dev)
     return 0;
 }
 
+static int cardemu_open(ifd_reader_t* reader, const char *device_name)
+{
+    ifd_debug(1, "cardemu_open: device=%s", device_name);
+    reader->name = "OpenPGPCardEmu reader";
+    ifd_device_params_t params;
+    ifd_device_t *dev;
+    reader->nslots = 1;
+    if (!(dev = ifd_device_open(device_name)))
+    {
+        ifd_debug(3, "ifd_device_open failed");
+        return -1;
+    }
+    reader->device = dev;
+    if (dev->type == IFD_DEVICE_TYPE_SERIAL)
+    {
+        if (ifd_device_get_parameters(dev, &params) < 0)
+        {
+            ifd_debug(3, "ifd_device_get_parameters failed");
+            return -1;
+        }
+        params.serial.speed = 250000;
+        params.serial.bits = 8;
+        params.serial.stopbits = 1;
+        params.serial.parity = IFD_SERIAL_PARITY_NONE;
+        if (ifd_device_set_parameters(dev, &params) < 0)
+        {
+            ifd_debug(3, "ifd_device_set_parameters failed");
+            return -1;
+        }
+    }
+    else
+    {
+        ifd_debug(3, "cardemu_open failed, dev->type != IFD_DEVICE_TYPE_SERIAL ");
+        return -1;
+    }
+    dev->user_data = NULL;
+    dev->timeout = CMD_TIMEOUT;
+    //perform resync
+    if(!resync(dev))
+    {
+        ifd_debug(3, "cardemu_open: resync failed!");
+        return -1;
+    }
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -406,47 +462,7 @@ static int cardemu_activate(ifd_reader_t* reader)
     return 0;
 }
 
-static int cardemu_open(ifd_reader_t* reader, const char *device_name)
-{
-    ifd_debug(1, "device=%s", device_name);
-    reader->name = "OpenPGPCardEmu reader";
-    ifd_device_params_t params;
-    ifd_device_t *dev;
-    reader->nslots = 1;
-    if (!(dev = ifd_device_open(device_name)))
-    {
-        ifd_debug(3, "ifd_device_open failed");
-        return -1;
-    }
-    reader->device = dev;
-    if (dev->type == IFD_DEVICE_TYPE_SERIAL)
-    {
-        if (ifd_device_get_parameters(dev, &params) < 0)
-        {
-            ifd_debug(3, "ifd_device_get_parameters failed");
-            return -1;
-        }
-        params.serial.speed = 9600;
-        params.serial.bits = 8;
-        params.serial.stopbits = 1;
-        params.serial.parity = IFD_SERIAL_PARITY_NONE;
-        params.serial.dtr = 1;
-        params.serial.rts = 1;
-        if (ifd_device_set_parameters(dev, &params) < 0)
-        {
-            ifd_debug(3, "ifd_device_set_parameters failed");
-            return -1;
-        }
-    }
-    else
-    {
-        ifd_debug(3, "cardemu_open failed, dev->type != IFD_DEVICE_TYPE_SERIAL ");
-        return -1;
-    }
-    dev->user_data = NULL;
-    dev->timeout = CMD_TIMEOUT;
-    return 0;
-}
+
 
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout)
 {
