@@ -1,9 +1,11 @@
 #include "internal.h"
 
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <sys/poll.h>
+
 
 static struct ifd_driver_ops cardemu_driver = { 0 };
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout);
@@ -237,11 +239,54 @@ uint8_t resync(ifd_device_t * const dev)
         if(!comm_verify(resyncBuff,remLen+CMD_HDR_SIZE))
             continue;
         //generate control-sequence
+        for(int h=0;h<CMD_MAX_PLSZ;++h)
+            *(resyncBuff+CMD_HDR_SIZE+h)=(uint8_t)(rand() % 256);
+        msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,CMD_MAX_PLSZ);
         //send resync command with control sequence
+        rem=msgLen;
+        while(rem>0)
+        {
+            uint8_t dw=comm_send(dev,resyncBuff+CMD_HDR_SIZE+(msgLen-rem),rem);
+            if(!dw)
+                break;
+            remLen-=dw;
+        }
+        if(rem>0)
+            continue;
         //read back resync-answer with control sequence
-        //compare it
-        //return 1
-        //==until
+        uint8_t ansBuff[CMD_BUFF_SIZE];
+        if(!comm_recv(dev,ansBuff,CMD_HDR_SIZE))
+            continue;
+        remLen=comm_header_decode(ansBuff);
+        if(!remLen)
+            continue;
+        if(comm_get_ans_mask(ansBuff)!=ANS_RESYNC)
+            continue;
+        if(remLen!=CMD_MAX_REMSZ)
+            continue;
+        rem=remLen;
+        while(rem>0)
+        {
+            uint8_t dr=comm_recv(dev,ansBuff+CMD_HDR_SIZE+(remLen-rem),rem);
+            if(!dr)
+                break;
+            remLen-=dr;
+        }
+        if(rem>0)
+            continue;
+        if(!comm_verify(ansBuff,remLen+CMD_HDR_SIZE))
+            continue;
+        //compare answer
+        for(g=0;g<CMD_MAX_PLSZ;++g)
+            if(*(ansBuff+CMD_HDR_SIZE+g)!=*(resyncBuff+CMD_HDR_SIZE+g))
+                break;
+        if(g<CMD_MAX_PLSZ)
+            continue;
+        //send RESYNC_COMPLETE
+        msgLen=comm_message(resyncBuff,REQ_RESYNC_COMPLETE,resyncBuff+CMD_HDR_SIZE,0);
+        if(!comm_send(dev,resyncBuff,msgLen))
+            continue;
+        return 1;
     }
     ifd_debug(3, "resync failed!");
     return 0;
