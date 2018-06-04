@@ -54,6 +54,124 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
     return crc;
 }
 
+// command buffer sizes
+#define CMD_HDR_SIZE 1
+#define CMD_HDR_SIZE_IS_1
+#define CMD_CRC_SIZE 1
+#define CMD_CRC_SIZE_IS_1
+#define CMD_BUFF_SIZE 16
+#define CMD_TIMEOUT 2000
+
+#define CMD_SIZE_MASK 0x1F
+#define CMD_MAX_REMSZ 15
+#define CMD_MIN_REMSZ 1
+#define CMD_MAX_PLSZ  14
+
+// requests (masks)
+#define REQ_ALL_MASK 0xE0
+#define REQ_CARD_STATUS 0x20
+#define REQ_CARD_RESET 0x40
+#define REQ_CARD_DEACTIVATE 0x60
+#define REQ_CARD_SEND 0x80
+#define REQ_CARD_RESPOND 0xA0
+#define REQ_RESYNC_COMPLETE 0xC0
+#define REQ_RESYNC 0xE0
+
+// answers (masks)
+#define ANS_ALL_MASK 0xE0
+#define ANS_CARD_ABSENT 0x20
+#define ANS_CARD_PRESENT 0x40
+#define ANS_CARD_INACTIVE 0x60
+#define ANS_CARD_DATA 0x80
+#define ANS_CARD_EOD 0xA0
+#define ANS_OK 0xC0
+#define ANS_RESYNC 0xE0
+
+// payload size
+#define comm_get_payload_size(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
+#define comm_get_payload(cmdBuffPtr) (cmdBuffPtr + CMD_HDR_SIZE)
+#define comm_get_ans_mask(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & ANS_ALL_MASK))
+
+// return 0 - transmission error, >0 - payload size + CRC size
+uint8_t comm_header_decode(const uint8_t * const cmdBuff)
+{
+  //decode and check remaining message size
+  uint8_t remSz = *cmdBuff & CMD_SIZE_MASK;
+  if(remSz<CMD_MIN_REMSZ||remSz>CMD_MAX_REMSZ)
+    return 0;
+  //check header against supported commands list
+  uint8_t ans=comm_get_ans_mask(cmdBuff);
+  switch(ans)
+  {
+    case ANS_CARD_ABSENT:
+    case ANS_CARD_PRESENT:
+    case ANS_CARD_INACTIVE:
+    case ANS_CARD_EOD:
+    case ANS_OK:
+      if(remSz>CMD_MIN_REMSZ)
+        return 0;
+      break;
+    case ANS_CARD_DATA:
+      if(remSz==CMD_MIN_REMSZ)
+        return 0;
+      break;
+    case ANS_RESYNC:
+      break;
+    default:
+      return 0;
+  }
+  return remSz;
+}
+
+// return 0 - verification error, 1 - ok
+uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize )
+{
+  if(cmdSize<(CMD_HDR_SIZE+CMD_CRC_SIZE))
+    return 0;
+#ifdef CMD_CRC_SIZE_IS_1
+  if(*(cmdBuff+cmdSize-1)!=CRC8(cmdBuff,(uint8_t)(cmdSize-1)))
+    return 0;
+#else
+#error unsupported CMD_CRC_SIZE
+#endif
+  return 1;
+}
+
+uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen)
+{
+  if(plLen>CMD_MAX_PLSZ)
+    return 0;
+  //place data to cmdBuff, payload buffer may overlap with cmdBuff
+  if(payload!=cmdBuff+CMD_HDR_SIZE)
+  {
+    if(payload>cmdBuff+CMD_HDR_SIZE)
+      for(uint8_t i=0; i<plLen; ++i)
+        *(cmdBuff+CMD_HDR_SIZE+i)=*(payload+i);
+    else
+      for(uint8_t i=plLen; i>0; --i)
+        *(cmdBuff+CMD_HDR_SIZE+i-1)=*(payload+i-1);
+  }
+  //write header
+#ifdef CMD_HDR_SIZE_IS_1
+  *cmdBuff=(uint8_t)(cmdMask|plLen);
+#else
+#error unsupporned CMD_HDR_SIZE
+#endif
+  //write crc
+  uint8_t cmdLen=(uint8_t)(plLen+CMD_HDR_SIZE);
+  *(cmdBuff+cmdLen)=CRC8(cmdBuff,cmdLen);
+  return (uint8_t)(cmdLen+CMD_CRC_SIZE);
+}
+
+
+
+
+
+
+
+
+
+
 static int cardemu_setctrl(ifd_device_t *dev, const int ctrl)
 {
     int tmp;
