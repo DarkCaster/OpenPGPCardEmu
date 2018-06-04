@@ -11,7 +11,7 @@ static struct ifd_driver_ops cardemu_driver = { 0 };
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout);
 
 //fast crc8 algo taken from wikipedia
-static const unsigned char Crc8Table[256] = {
+static const uint8_t Crc8Table[256] = {
     0x00, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97,
     0xB9, 0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E,
     0x43, 0x72, 0x21, 0x10, 0x87, 0xB6, 0xE5, 0xD4,
@@ -46,7 +46,7 @@ static const unsigned char Crc8Table[256] = {
     0x3B, 0x0A, 0x59, 0x68, 0xFF, 0xCE, 0x9D, 0xAC
 };
 
-static unsigned char CRC8(const unsigned char *source, unsigned char len)
+static unsigned char CRC8(const uint8_t *source, uint8_t len)
 {
     unsigned char crc = 0xFF;
     while (len--)
