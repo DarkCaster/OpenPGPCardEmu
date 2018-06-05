@@ -34,7 +34,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
     case REQ_CARD_DEACTIVATE:
       if(remSz>CMD_MIN_REMSZ)
       {
-        LOG("comm_header_decode: invalid remaining data size for request: 0x%02X)\n",req);
+        LOG("comm_header_decode: invalid remaining data size for request: 0x%02X\n",req);
         return 0;
       }
       break;
@@ -42,7 +42,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
     case REQ_CARD_RESPOND:
       if(remSz==CMD_MIN_REMSZ)
       {
-        LOG("comm_header_decode: zero data size for send\respond request: 0x%02X)\n",req);
+        LOG("comm_header_decode: zero data size for send\respond request: 0x%02X\n",req);
         return 0;
       }
       break;
@@ -50,7 +50,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
     case REQ_RESYNC_COMPLETE:
       break;
     default:
-      LOG("comm_header_decode: invalid request received: 0x%02X)\n",req);
+      LOG("comm_header_decode: invalid request received: 0x%02X\n",req);
       return 0;
   }
   return remSz;
