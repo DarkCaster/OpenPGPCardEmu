@@ -155,7 +155,7 @@ static uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, cons
   }
   //write header
 #ifdef CMD_HDR_SIZE_IS_1
-  *cmdBuff=(uint8_t)(cmdMask|plLen);
+  *cmdBuff=(uint8_t)(cmdMask|(plLen+CMD_CRC_SIZE));
 #else
 #error unsupporned CMD_HDR_SIZE
 #endif
