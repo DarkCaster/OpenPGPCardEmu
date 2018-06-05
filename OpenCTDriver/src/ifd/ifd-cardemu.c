@@ -340,6 +340,7 @@ uint8_t resync(ifd_device_t * const dev)
             ifd_debug(3, "resync: failed to send REQ_RESYNC_COMPLETE");
             continue;
         }
+        //TODO: receive confirmation
         return 1;
     }
     ifd_debug(3, "resync failed!");
