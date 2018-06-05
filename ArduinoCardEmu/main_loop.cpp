@@ -59,6 +59,7 @@ void resync()
     status--;
   if(!Serial.available())
     return;
+  LOG("resync in progress");
   //read header
   Serial.readBytes(commBuffer,1);
   //check header
@@ -90,6 +91,7 @@ void resync()
         while(Serial.write(commBuffer[i])<1) {}
       //resync complete!
       status=1;
+      LOG("resync complete!");
       return;
     }
     else
