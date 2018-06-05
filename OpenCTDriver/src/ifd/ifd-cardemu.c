@@ -273,7 +273,7 @@ uint8_t resync(ifd_device_t * const dev)
         rem=msgLen;
         while(rem>0)
         {
-            uint8_t dw=comm_send(dev,resyncBuff+CMD_HDR_SIZE+(msgLen-rem),rem);
+            uint8_t dw=comm_send(dev,resyncBuff+(msgLen-rem),rem);
             if(!dw)
                 break;
             rem-=dw;
