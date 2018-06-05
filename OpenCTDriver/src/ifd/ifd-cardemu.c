@@ -204,40 +204,67 @@ uint8_t resync(ifd_device_t * const dev)
         //send empty resync command
         uint8_t msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
+        {
+            ifd_debug(3, "resync: initial REQ_RESYNC send failed");
             continue;
+        }
         //read data until timeout
         int g;
         for(g=0; g<MAX_RESYNC_GARBAGE; ++g)
             if(!comm_recv(dev,resyncBuff,1))
                 break;
         if(g>=MAX_RESYNC_GARBAGE)
+        {
+            ifd_debug(3, "resync: invalid response (1)");
             continue;
+        }
         //send empty resync command
         msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
+        {
+            ifd_debug(3, "resync: second REQ_RESYNC send failed");
             continue;
+        }
         //read empty resync response
         if(!comm_recv(dev,resyncBuff,CMD_HDR_SIZE))
+        {
+            ifd_debug(3, "resync: invalid response (2,HDR)");
             continue;
+        }
         uint8_t remLen=comm_header_decode(resyncBuff);
         if(!remLen)
+        {
+            ifd_debug(3, "resync: invalid response (2,HDRDECODE)");
             continue;
+        }
         if(comm_get_ans_mask(resyncBuff)!=ANS_RESYNC)
+        {
+            ifd_debug(3, "resync: invalid response (2,HDRTYPE)");
             continue;
+        }
         if(remLen!=CMD_CRC_SIZE)
+        {
+            ifd_debug(3, "resync: invalid response (2,REMLEN)");
             continue;
+        }
         uint8_t rem=remLen;
         while(rem>0)
         {
             uint8_t dr=comm_recv(dev,resyncBuff+CMD_HDR_SIZE+(remLen-rem),rem);
             if(!dr)
                 break;
-            remLen-=dr;
+            rem-=dr;
         }
         if(rem>0)
+        {
+            ifd_debug(3, "resync: invalid response (2,REMDATA)");
             continue;
+        }
         if(!comm_verify(resyncBuff,remLen+CMD_HDR_SIZE))
+        {
+            ifd_debug(3, "resync: invalid response (2,CRC)");
             continue;
+        }
         //generate control-sequence
         for(int h=0;h<CMD_MAX_PLSZ;++h)
             *(resyncBuff+CMD_HDR_SIZE+h)=(uint8_t)(rand() % 256);
@@ -249,43 +276,70 @@ uint8_t resync(ifd_device_t * const dev)
             uint8_t dw=comm_send(dev,resyncBuff+CMD_HDR_SIZE+(msgLen-rem),rem);
             if(!dw)
                 break;
-            remLen-=dw;
+            rem-=dw;
         }
         if(rem>0)
+        {
+            ifd_debug(3, "resync: failed to send final resync sequence");
             continue;
+        }
         //read back resync-answer with control sequence
         uint8_t ansBuff[CMD_BUFF_SIZE];
         if(!comm_recv(dev,ansBuff,CMD_HDR_SIZE))
+        {
+            ifd_debug(3, "resync: invalid response (3,HDR)");
             continue;
+        }
         remLen=comm_header_decode(ansBuff);
         if(!remLen)
+        {
+            ifd_debug(3, "resync: invalid response (3,HDRDECODE)");
             continue;
+        }
         if(comm_get_ans_mask(ansBuff)!=ANS_RESYNC)
+        {
+            ifd_debug(3, "resync: invalid response (3,HDRTYPE)");
             continue;
+        }
         if(remLen!=CMD_MAX_REMSZ)
+        {
+            ifd_debug(3, "resync: invalid response (3,REMLEN)");
             continue;
+        }
         rem=remLen;
         while(rem>0)
         {
             uint8_t dr=comm_recv(dev,ansBuff+CMD_HDR_SIZE+(remLen-rem),rem);
             if(!dr)
                 break;
-            remLen-=dr;
+            rem-=dr;
         }
         if(rem>0)
+        {
+            ifd_debug(3, "resync: invalid response (3,REMDATA)");
             continue;
+        }
         if(!comm_verify(ansBuff,remLen+CMD_HDR_SIZE))
+        {
+            ifd_debug(3, "resync: invalid response (3,CRC)");
             continue;
+        }
         //compare answer
         for(g=0;g<CMD_MAX_PLSZ;++g)
             if(*(ansBuff+CMD_HDR_SIZE+g)!=*(resyncBuff+CMD_HDR_SIZE+g))
                 break;
         if(g<CMD_MAX_PLSZ)
+        {
+            ifd_debug(3, "resync: invalid response (3,SEQUENCE)");
             continue;
+        }
         //send RESYNC_COMPLETE
         msgLen=comm_message(resyncBuff,REQ_RESYNC_COMPLETE,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
+        {
+            ifd_debug(3, "resync: failed to send REQ_RESYNC_COMPLETE");
             continue;
+        }
         return 1;
     }
     ifd_debug(3, "resync failed!");
