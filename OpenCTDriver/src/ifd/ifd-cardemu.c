@@ -91,7 +91,8 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 #define ANS_RESYNC 0xE0
 
 // payload size
-#define comm_get_payload_size(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
+#define comm_calc_payload_size(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
+#define comm_get_remsize(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & CMD_SIZE_MASK))
 #define comm_get_payload(cmdBuffPtr) (cmdBuffPtr + CMD_HDR_SIZE)
 #define comm_get_ans_mask(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & ANS_ALL_MASK))
 
@@ -107,7 +108,6 @@ static uint8_t comm_header_decode(const uint8_t * const cmdBuff)
   switch(ans)
   {
     case ANS_CARD_ABSENT:
-    case ANS_CARD_PRESENT:
     case ANS_CARD_EOD:
     case ANS_OK:
       if(remSz>CMD_MIN_REMSZ)
@@ -117,6 +117,7 @@ static uint8_t comm_header_decode(const uint8_t * const cmdBuff)
       if(remSz==CMD_MIN_REMSZ)
         return 0;
       break;
+    case ANS_CARD_PRESENT:
     case ANS_RESYNC:
       break;
     default:
@@ -441,7 +442,44 @@ static int cardemu_deactivate(ifd_reader_t * reader)
     return -1;
 }
 
-
+static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t size)
+{
+    ifd_device_t *dev = reader->device;
+    if (slot)
+    {
+        ct_error("cardemu: bad slot index %u", slot);
+        return IFD_ERROR_INVALID_SLOT;
+    }
+    #define RUN_RESYNC_AND_RETRY() { if (resync(dev)) continue; else return -1; }
+    uint8_t buff[CMD_BUFF_SIZE];
+    for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
+    {
+        //send REQ_CARD_RESET
+        uint8_t msgLen=comm_message(buff,REQ_CARD_RESET,buff+CMD_HDR_SIZE,0);
+        if(comm_send(dev,buff,msgLen)!=msgLen)
+            RUN_RESYNC_AND_RETRY();
+        //receive answer, run resync in case of error
+        if(!comm_recv_message(dev,buff))
+            RUN_RESYNC_AND_RETRY();
+        //check answer, run resync in case of wrong answer
+        if(comm_get_ans_mask(buff)!=ANS_CARD_PRESENT && comm_get_ans_mask(buff)!=ANS_CARD_ABSENT)
+            RUN_RESYNC_AND_RETRY();
+        //return no atr if card is absent
+        if(comm_get_ans_mask(buff)==ANS_CARD_ABSENT)
+            return 0;
+        //copy atr from answer
+        uint8_t* pl=comm_get_payload(buff);
+        uint8_t plLen=comm_calc_payload_size(comm_get_remsize(buff));
+        ifd_debug(3, "atr received: %s", ct_hexdump(pl, plLen));
+        uint8_t atrLen=(size>plLen)?plLen:(uint8_t)size;
+        for(int i=0;i<atrLen;++i)
+            *((uint8_t*)(atr+i))=*(pl+i);
+        ifd_debug(3, "atr returned: %s", ct_hexdump(atr, atrLen));
+        return atrLen;
+    }
+    ct_error("cardemu: reset failed!");
+    return -1;
+}
 
 
 
@@ -464,36 +502,6 @@ static int cardemu_setctrl(ifd_device_t *dev, const int ctrl)
     return (ioctl(dev->fd, TIOCMSET, &tmp));
 }
 
-
-
-static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t size)
-{
-    ifd_device_t *dev = reader->device;
-    int res;
-    if (slot)
-    {
-        ct_error("cardemu: bad slot index %u", slot);
-        return IFD_ERROR_INVALID_SLOT;
-    }
-    tcflush(dev->fd, TCIOFLUSH);
-    if (cardemu_setctrl(dev, TIOCM_CTS | TIOCM_DTR) < 0)
-    {
-        ifd_debug(3, "cardemu_card_reset: cardemu_setctrl #1 failed");
-        return -1;
-    }
-    if (cardemu_setctrl(dev, TIOCM_RTS | TIOCM_CTS | TIOCM_DTR) < 0)
-    {
-        ifd_debug(3, "cardemu_card_reset: cardemu_setctrl #2 failed");
-        return -1;
-    }
-    if ((res = cardemu_recv(reader, 0,(unsigned char *)atr, size, dev->timeout)) < 1)
-    {
-        ifd_debug(3, "cardemu_recv: atr recv failed");
-        return -1;
-    }
-    ifd_debug(1, "Bytes received %i\n", res);
-    return res;
-}
 
 static int cardemu_change_parity(ifd_reader_t *reader, int parity)
 {
