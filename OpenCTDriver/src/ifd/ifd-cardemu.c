@@ -177,14 +177,14 @@ static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const
         if (n == -1)
             return 0;
     }
-    ifd_debug(3, "comm_recv: %s", ct_hexdump(buffer, len));
+    if(i>0)
+        ifd_debug(3, "%s", ct_hexdump(buffer, i));
     return i;
 }
 
 // 0 - timeout, >0 - actual bytes written
 static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer, const uint8_t len)
 {
-    ifd_debug(3, "cardemu_send: %s", ct_hexdump(buffer, len));
     uint8_t i;
     for (i = 0; i<len; i++)
     {
@@ -192,7 +192,44 @@ static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer,
             return i;
         tcdrain(dev->fd);
     }
+    ifd_debug(3, "%s", ct_hexdump(buffer, i));
     return i;
+}
+
+// 0 - timeout or error, >0 - message length
+static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffer)
+{
+    if(!comm_recv(dev,buffer,CMD_HDR_SIZE))
+    {
+        ifd_debug(3, "failed to read header");
+        return 0;
+    }
+    uint8_t remLen=comm_header_decode(buffer);
+    if(!remLen)
+    {
+        ifd_debug(3, "header decode failed");
+        return 0;
+    }
+    uint8_t rem=remLen;
+    while(rem>0)
+    {
+        uint8_t dr=comm_recv(dev,buffer+CMD_HDR_SIZE+(remLen-rem),rem);
+        if(!dr)
+            break;
+        rem-=dr;
+    }
+    if(rem>0)
+    {
+        ifd_debug(3, "message body read failed");
+        return 0;
+    }
+    uint8_t msgLen=remLen+CMD_HDR_SIZE;
+    if(!comm_verify(buffer,msgLen))
+    {
+        ifd_debug(3, "CRC verification failed");
+        return 0;
+    }
+    return msgLen;
 }
 
 //0 error, 1 - ok
@@ -205,7 +242,7 @@ uint8_t resync(ifd_device_t * const dev)
         uint8_t msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
         {
-            ifd_debug(3, "resync: initial REQ_RESYNC send failed");
+            ifd_debug(3, "initial REQ_RESYNC send failed");
             continue;
         }
         //read data until timeout
@@ -215,54 +252,26 @@ uint8_t resync(ifd_device_t * const dev)
                 break;
         if(g>=MAX_RESYNC_GARBAGE)
         {
-            ifd_debug(3, "resync: invalid response (1)");
+            ifd_debug(3, "invalid response (1)");
             continue;
         }
         //send empty resync command
         msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
         {
-            ifd_debug(3, "resync: second REQ_RESYNC send failed");
+            ifd_debug(3, "second REQ_RESYNC send failed");
             continue;
         }
         //read empty resync response
-        if(!comm_recv(dev,resyncBuff,CMD_HDR_SIZE))
+        msgLen=comm_recv_message(dev,resyncBuff);
+        if(msgLen!=CMD_CRC_SIZE+CMD_HDR_SIZE)
         {
-            ifd_debug(3, "resync: invalid response (2,HDR)");
-            continue;
-        }
-        uint8_t remLen=comm_header_decode(resyncBuff);
-        if(!remLen)
-        {
-            ifd_debug(3, "resync: invalid response (2,HDRDECODE)");
+            ifd_debug(3, "invalid response (2,MSGLEN)");
             continue;
         }
         if(comm_get_ans_mask(resyncBuff)!=ANS_RESYNC)
         {
-            ifd_debug(3, "resync: invalid response (2,HDRTYPE)");
-            continue;
-        }
-        if(remLen!=CMD_CRC_SIZE)
-        {
-            ifd_debug(3, "resync: invalid response (2,REMLEN)");
-            continue;
-        }
-        uint8_t rem=remLen;
-        while(rem>0)
-        {
-            uint8_t dr=comm_recv(dev,resyncBuff+CMD_HDR_SIZE+(remLen-rem),rem);
-            if(!dr)
-                break;
-            rem-=dr;
-        }
-        if(rem>0)
-        {
-            ifd_debug(3, "resync: invalid response (2,REMDATA)");
-            continue;
-        }
-        if(!comm_verify(resyncBuff,remLen+CMD_HDR_SIZE))
-        {
-            ifd_debug(3, "resync: invalid response (2,CRC)");
+            ifd_debug(3, "invalid response (2,HDRTYPE)");
             continue;
         }
         //generate control-sequence
@@ -270,7 +279,7 @@ uint8_t resync(ifd_device_t * const dev)
             *(resyncBuff+CMD_HDR_SIZE+h)=(uint8_t)(rand() % 256);
         msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,CMD_MAX_PLSZ);
         //send resync command with control sequence
-        rem=msgLen;
+        uint8_t rem=msgLen;
         while(rem>0)
         {
             uint8_t dw=comm_send(dev,resyncBuff+(msgLen-rem),rem);
@@ -280,48 +289,20 @@ uint8_t resync(ifd_device_t * const dev)
         }
         if(rem>0)
         {
-            ifd_debug(3, "resync: failed to send final resync sequence");
+            ifd_debug(3, "failed to send final resync sequence");
             continue;
         }
         //read back resync-answer with control sequence
         uint8_t ansBuff[CMD_BUFF_SIZE];
-        if(!comm_recv(dev,ansBuff,CMD_HDR_SIZE))
+        msgLen=comm_recv_message(dev,ansBuff);
+        if(msgLen!=CMD_MAX_REMSZ+CMD_HDR_SIZE)
         {
-            ifd_debug(3, "resync: invalid response (3,HDR)");
-            continue;
-        }
-        remLen=comm_header_decode(ansBuff);
-        if(!remLen)
-        {
-            ifd_debug(3, "resync: invalid response (3,HDRDECODE)");
+            ifd_debug(3, "invalid response (3,MSGLEN)");
             continue;
         }
         if(comm_get_ans_mask(ansBuff)!=ANS_RESYNC)
         {
-            ifd_debug(3, "resync: invalid response (3,HDRTYPE)");
-            continue;
-        }
-        if(remLen!=CMD_MAX_REMSZ)
-        {
-            ifd_debug(3, "resync: invalid response (3,REMLEN)");
-            continue;
-        }
-        rem=remLen;
-        while(rem>0)
-        {
-            uint8_t dr=comm_recv(dev,ansBuff+CMD_HDR_SIZE+(remLen-rem),rem);
-            if(!dr)
-                break;
-            rem-=dr;
-        }
-        if(rem>0)
-        {
-            ifd_debug(3, "resync: invalid response (3,REMDATA)");
-            continue;
-        }
-        if(!comm_verify(ansBuff,remLen+CMD_HDR_SIZE))
-        {
-            ifd_debug(3, "resync: invalid response (3,CRC)");
+            ifd_debug(3, "invalid response (3,HDRTYPE)");
             continue;
         }
         //compare answer
@@ -330,17 +311,28 @@ uint8_t resync(ifd_device_t * const dev)
                 break;
         if(g<CMD_MAX_PLSZ)
         {
-            ifd_debug(3, "resync: invalid response (3,SEQUENCE)");
+            ifd_debug(3, "invalid response (3,SEQUENCE)");
             continue;
         }
         //send RESYNC_COMPLETE
         msgLen=comm_message(resyncBuff,REQ_RESYNC_COMPLETE,resyncBuff+CMD_HDR_SIZE,0);
         if(!comm_send(dev,resyncBuff,msgLen))
         {
-            ifd_debug(3, "resync: failed to send REQ_RESYNC_COMPLETE");
+            ifd_debug(3, "failed to send REQ_RESYNC_COMPLETE");
             continue;
         }
-        //TODO: receive confirmation
+        //receive confirmation
+        msgLen=comm_recv_message(dev,resyncBuff);
+        if(msgLen!=CMD_HDR_SIZE+CMD_CRC_SIZE)
+        {
+            ifd_debug(3, "invalid response (4,MSGLEN)");
+            continue;
+        }
+        if(comm_get_ans_mask(resyncBuff)!=ANS_OK)
+        {
+            ifd_debug(3, "invalid response (4,HDRTYPE)");
+            continue;
+        }
         return 1;
     }
     ifd_debug(3, "resync failed!");
@@ -349,7 +341,7 @@ uint8_t resync(ifd_device_t * const dev)
 
 static int cardemu_open(ifd_reader_t* reader, const char *device_name)
 {
-    ifd_debug(1, "cardemu_open: device=%s", device_name);
+    ifd_debug(1, "device=%s", device_name);
     reader->name = "OpenPGPCardEmu reader";
     ifd_device_params_t params;
     ifd_device_t *dev;
@@ -387,7 +379,7 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
     //perform resync
     if(!resync(dev))
     {
-        ifd_debug(3, "cardemu_open: resync failed!");
+        ifd_debug(3, "resync failed!");
         return -1;
     }
     return 0;
