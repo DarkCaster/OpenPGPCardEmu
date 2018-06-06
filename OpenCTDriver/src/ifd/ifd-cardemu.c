@@ -182,18 +182,13 @@ static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const
     return i;
 }
 
-// 0 - timeout, >0 - actual bytes written
+// 0 in case of error, or len in case of success
 static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer, const uint8_t len)
 {
-    uint8_t i;
-    for (i = 0; i<len; i++)
-    {
-        if (write(dev->fd,buffer+i,1) < 1)
-            return i;
-        tcdrain(dev->fd);
-    }
-    ifd_debug(3, "%s", ct_hexdump(buffer, i));
-    return i;
+    if(ifd_device_send(dev,buffer,len)!=len)
+        return 0;
+    ifd_debug(3, "%s", ct_hexdump(buffer, len));
+    return len;
 }
 
 // 0 - timeout or error, >0 - message length
@@ -231,6 +226,12 @@ static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffe
     }
     return msgLen;
 }
+
+// 0 - timeout or error, >0 - message length
+/*static uint8_t comm_send_message(ifd_device_t * const dev, const uint8_t * const msgBuffer)
+{
+    return comm_send(dev,msgBuffer,(*msgBuffer & CMD_SIZE_MASK)+CMD_HDR_SIZE);
+}*/
 
 //0 error, 1 - ok
 uint8_t resync(ifd_device_t * const dev)
@@ -279,15 +280,7 @@ uint8_t resync(ifd_device_t * const dev)
             *(resyncBuff+CMD_HDR_SIZE+h)=(uint8_t)(rand() % 256);
         msgLen=comm_message(resyncBuff,REQ_RESYNC,resyncBuff+CMD_HDR_SIZE,CMD_MAX_PLSZ);
         //send resync command with control sequence
-        uint8_t rem=msgLen;
-        while(rem>0)
-        {
-            uint8_t dw=comm_send(dev,resyncBuff+(msgLen-rem),rem);
-            if(!dw)
-                break;
-            rem-=dw;
-        }
-        if(rem>0)
+        if(!comm_send(dev,resyncBuff,msgLen))
         {
             ifd_debug(3, "failed to send final resync sequence");
             continue;
@@ -376,6 +369,12 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
     }
     dev->user_data = NULL;
     dev->timeout = CMD_TIMEOUT;
+    //perform tcflush(int fd, int queue_selector);
+    if(tcflush(dev->fd, TCIOFLUSH)!=0)
+    {
+        ifd_debug(3, "tcflush failed!");
+        return -1;
+    }
     //perform resync
     if(!resync(dev))
     {
