@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <sys/poll.h>
@@ -375,6 +376,8 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
         ifd_debug(3, "tcflush failed!");
         return -1;
     }
+    //reset random generator
+    srand((unsigned int)(time(NULL)/2L));
     //perform resync
     if(!resync(dev))
     {
