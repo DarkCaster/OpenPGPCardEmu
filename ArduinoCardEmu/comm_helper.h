@@ -32,7 +32,6 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 #define ANS_ALL_MASK 0xE0_u8
 #define ANS_CARD_ABSENT 0x20_u8
 #define ANS_CARD_PRESENT 0x40_u8
-#define ANS_CARD_INACTIVE 0x60_u8
 #define ANS_CARD_DATA 0x80_u8
 #define ANS_CARD_EOD 0xA0_u8
 #define ANS_OK 0xC0_u8
