@@ -237,6 +237,7 @@ static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffe
 //0 error, 1 - ok
 uint8_t resync(ifd_device_t * const dev)
 {
+    ifd_debug(3, "running");
     uint8_t resyncBuff[CMD_BUFF_SIZE];
     for(int i=0; i<MAX_RESYNC_TRIES; ++i)
     {
@@ -327,14 +328,16 @@ uint8_t resync(ifd_device_t * const dev)
             ifd_debug(3, "invalid response (4,HDRTYPE)");
             continue;
         }
+        ifd_debug(3, "done");
         return 1;
     }
-    ifd_debug(3, "resync failed!");
+    ifd_debug(3, "failed!");
     return 0;
 }
 
 static int cardemu_open(ifd_reader_t* reader, const char *device_name)
 {
+    ifd_debug(3, "starting");
     ifd_debug(1, "device=%s", device_name);
     reader->name = "OpenPGPCardEmu reader";
     ifd_device_params_t params;
@@ -384,12 +387,15 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
         ifd_debug(3, "resync failed!");
         return -1;
     }
+    ifd_debug(3, "done");
     return 0;
 }
 
+#define RUN_RESYNC_AND_RETRY() { if (resync(dev)) continue; else break; }
+
 static int cardemu_card_status(ifd_reader_t * reader, int slot, int *status)
 {
-    #define RUN_RESYNC_AND_RETRY() { if (resync(dev)) continue; else return -1; }
+    ifd_debug(3, "starting");
     ifd_device_t *dev = reader->device;
     if (slot)
     {
@@ -411,6 +417,7 @@ static int cardemu_card_status(ifd_reader_t * reader, int slot, int *status)
             RUN_RESYNC_AND_RETRY();
         //write status result
         *status = comm_get_ans_mask(buff)==ANS_CARD_PRESENT ? IFD_CARD_PRESENT : 0;
+        ifd_debug(3, "done, status is %d", *status);
         return 0;
     }
     //error getting status
@@ -420,7 +427,7 @@ static int cardemu_card_status(ifd_reader_t * reader, int slot, int *status)
 
 static int cardemu_deactivate(ifd_reader_t * reader)
 {
-    #define RUN_RESYNC_AND_RETRY() { if (resync(dev)) continue; else return -1; }
+    ifd_debug(3, "starting");
     ifd_device_t *dev = reader->device;
     uint8_t buff[CMD_BUFF_SIZE];
     for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
@@ -435,6 +442,7 @@ static int cardemu_deactivate(ifd_reader_t * reader)
         //check answer, run resync in case of wrong answer
         if(comm_get_ans_mask(buff)!=ANS_OK)
             RUN_RESYNC_AND_RETRY();
+        ifd_debug(3, "done");
         return 0;
     }
     //error
@@ -444,13 +452,13 @@ static int cardemu_deactivate(ifd_reader_t * reader)
 
 static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t size)
 {
+    ifd_debug(3, "starting");
     ifd_device_t *dev = reader->device;
     if (slot)
     {
         ct_error("cardemu: bad slot index %u", slot);
         return IFD_ERROR_INVALID_SLOT;
     }
-    #define RUN_RESYNC_AND_RETRY() { if (resync(dev)) continue; else return -1; }
     uint8_t buff[CMD_BUFF_SIZE];
     for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
@@ -466,7 +474,10 @@ static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t 
             RUN_RESYNC_AND_RETRY();
         //return no atr if card is absent
         if(comm_get_ans_mask(buff)==ANS_CARD_ABSENT)
+        {
+            ifd_debug(3, "done, card is absent");
             return 0;
+        }
         //copy atr from answer
         uint8_t* pl=comm_get_payload(buff);
         uint8_t plLen=comm_calc_payload_size(comm_get_remsize(buff));
@@ -474,7 +485,7 @@ static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t 
         uint8_t atrLen=(size>plLen)?plLen:(uint8_t)size;
         for(int i=0;i<atrLen;++i)
             *((uint8_t*)(atr+i))=*(pl+i);
-        ifd_debug(3, "atr returned: %s", ct_hexdump(atr, atrLen));
+        ifd_debug(3, "done, atr returned: %s", ct_hexdump(atr, atrLen));
         return atrLen;
     }
     ct_error("cardemu: reset failed!");
