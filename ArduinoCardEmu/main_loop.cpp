@@ -69,7 +69,7 @@ void resync()
     RESYNC_FAILED();
     return;
   }
-  auto req=comm_get_req_mask(commBuffer);
+  auto req=comm_get_req_mask_M(commBuffer);
   if(status==-2)
   {
     //awaiting for resync complete request
@@ -115,8 +115,8 @@ void resync()
       return;
     }
     //create resync answer (with checksum)
-    auto plLen=comm_get_payload_size(remLen);
-    auto payload=comm_get_payload(commBuffer);
+    auto plLen=comm_get_payload_size_M(remLen);
+    auto payload=comm_get_payload_M(commBuffer);
     //send answer to serial
     auto msgLen=comm_message(commBuffer,ANS_RESYNC,payload,plLen);
     for(uint8_t i=0; i<msgLen; ++i)

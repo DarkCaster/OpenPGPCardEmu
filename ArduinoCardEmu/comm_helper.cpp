@@ -26,7 +26,7 @@ uint8_t comm_header_decode(const uint8_t * const cmdBuff)
     return 0;
   }
   //check header against supported commands list
-  auto req=comm_get_req_mask(cmdBuff);
+  auto req=comm_get_req_mask_M(cmdBuff);
   switch(req)
   {
     case REQ_CARD_STATUS:

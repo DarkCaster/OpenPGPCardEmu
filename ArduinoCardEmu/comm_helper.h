@@ -38,9 +38,9 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 #define ANS_RESYNC 0xE0_u8
 
 // payload size
-#define comm_get_payload_size(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
-#define comm_get_payload(cmdBuffPtr) (cmdBuffPtr + CMD_HDR_SIZE)
-#define comm_get_req_mask(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & REQ_ALL_MASK))
+#define comm_get_payload_size_M(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
+#define comm_get_payload_M(cmdBuffPtr) (cmdBuffPtr + CMD_HDR_SIZE)
+#define comm_get_req_mask_M(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & REQ_ALL_MASK))
 
 // return 0 - transmission error, >0 - payload size + CRC size
 uint8_t comm_header_decode(const uint8_t * const cmdBuff);
