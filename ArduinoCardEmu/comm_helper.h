@@ -50,4 +50,35 @@ uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize );
 
 uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen);
 
+/*class CommHelper
+{
+  private:
+    const HardwareSerial serial;
+    uint8_t comm_recv(uint8_t * const buffer, const uint8_t len);
+  public:
+    CommHelper(HardwareSerial port);
+    void Init(long speed);
+    void Deinit();
+    uint8_t comm_header_decode(const uint8_t * const cmdBuff); // return 0 - transmission error, >0 - payload size + CRC size
+    uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize ); // return 0 - verification error, 1 - ok
+    uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen); // return - message size
+
+    
+// payload size
+uint8_t comm_get_payload_size(uint8_t totalSize)
+{
+  return totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize;
+};
+
+uint8_t* comm_get_payload(const uint8_t * const cmdBuffPtr)
+{
+  return cmdBuffPtr + CMD_HDR_SIZE;
+};
+
+uint8_t comm_get_req_mask(const uint8_t * const cmdBuffPtr)
+{
+  return *cmdBuffPtr & REQ_ALL_MASK;
+};
+};*/
+
 #endif
