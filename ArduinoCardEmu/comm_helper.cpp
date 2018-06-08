@@ -93,3 +93,26 @@ uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8
   *(cmdBuff+cmdLen)=CRC8(cmdBuff,cmdLen);
   return (uint8_t)(cmdLen+CMD_CRC_SIZE);
 }
+
+Request::Request(const uint8_t* const message)
+{
+   reqType= static_cast<ReqType>(*message & REQ_ALL_MASK);
+   plLen=(*message & CMD_SIZE_MASK)-CMD_CRC_SIZE;
+   for(uint8_t i=0;i<plLen;++i)
+      *(payload+i)=*(message+CMD_HDR_SIZE+i);
+}
+
+CommHelper::CommHelper(const HardwareSerial port) : serial(port) { }
+
+void CommHelper::Init(const long speed)
+{
+  serial.begin(speed);
+}
+
+void CommHelper::Deinit()
+{
+  serial.end();
+}
+
+
+

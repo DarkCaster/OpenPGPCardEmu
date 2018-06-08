@@ -20,6 +20,7 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 
 // requests (masks)
 #define REQ_ALL_MASK 0xE0_u8
+#define REQ_INVALID 0x00_u8
 #define REQ_CARD_STATUS 0x20_u8
 #define REQ_CARD_RESET 0x40_u8
 #define REQ_CARD_DEACTIVATE 0x60_u8
@@ -30,6 +31,7 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 
 // answers (masks)
 #define ANS_ALL_MASK 0xE0_u8
+#define ANS_INVALID 0x00_u8
 #define ANS_CARD_ABSENT 0x20_u8
 #define ANS_CARD_PRESENT 0x40_u8
 #define ANS_CARD_DATA 0x80_u8
@@ -50,22 +52,56 @@ uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize );
 
 uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen);
 
+
+
+
+
+enum class ReqType : uint8_t
+{
+  Invalid = REQ_INVALID,
+  CardStatus = REQ_CARD_STATUS,
+  CardReset = REQ_CARD_RESET,
+  CardDeactivate = REQ_CARD_DEACTIVATE,
+  CardSend = REQ_CARD_SEND,
+  CardRespond = REQ_CARD_RESPOND,
+  ResyncComplete = REQ_RESYNC_COMPLETE,
+  Resync = REQ_RESYNC
+};
+
+enum class AnsType : uint8_t
+{
+  Invalid = ANS_INVALID,
+  CardAbsent = ANS_CARD_ABSENT,
+  CardPresent = ANS_CARD_PRESENT,
+  CardData = ANS_CARD_DATA,
+  CardEOD = ANS_CARD_EOD,
+  Ok = ANS_OK,
+  Resync = ANS_RESYNC
+};
+
+struct Request
+{
+    Request();
+    Request(const uint8_t* const message);
+    ReqType reqType;
+    uint8_t plLen;
+    uint8_t payload[CMD_MAX_PLSZ];
+};
+
 class CommHelper
 {
   private:
-    const HardwareSerial serial;
-    uint8_t comm_recv(uint8_t * const buffer, const uint8_t len);
+    HardwareSerial serial;
+    //uint8_t CommRecv(uint8_t * const buffer, const uint8_t len);
+    //uint8_t CommSend(const uint8_t * const buffer, const uint8_t len);
+    //uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize ); // return 0 - verification error, 1 - ok
+    //uint8_t comm_header_decode(const uint8_t * const cmdBuff); // return 0 - transmission error, >0 - payload size + CRC size
   public:
-    CommHelper(HardwareSerial port);
-    void Init(long speed);
+    CommHelper(const HardwareSerial port);
+    void Init(const long speed);
     void Deinit();
-    uint8_t comm_header_decode(const uint8_t * const cmdBuff); // return 0 - transmission error, >0 - payload size + CRC size
-    uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize ); // return 0 - verification error, 1 - ok
-    uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen); // return - message size
-    // payload size
-    uint8_t comm_get_payload_size(uint8_t totalSize) { return totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize; }
-    uint8_t* comm_get_payload(uint8_t* const cmdBuffPtr) { return cmdBuffPtr + CMD_HDR_SIZE; }
-    uint8_t comm_get_req_mask(const uint8_t * const cmdBuffPtr){ return *cmdBuffPtr & REQ_ALL_MASK; }
+    Request ReceiveRequest();
+    uint8_t SendAnswer(const AnsType answer, const uint8_t* const payload, uint8_t plLen);
 };
 
 #endif
