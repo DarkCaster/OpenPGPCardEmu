@@ -3,6 +3,7 @@
 #include "arduino-defines.h"
 #include <cstdio>
 #include <cstdint>
+#include "serial.h"
 #define LOG(...) ({printf(__VA_ARGS__); fflush(stdout);})
 //#define LOG(format,...) ({})
 
