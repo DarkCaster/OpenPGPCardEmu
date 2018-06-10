@@ -101,7 +101,7 @@ void setup()
 {
   SYNC_LED_PREP();
   SYNC_ERR();
-  commHelper.Init(250000);
+  commHelper.Init(38400);
 }
 
 void loop()

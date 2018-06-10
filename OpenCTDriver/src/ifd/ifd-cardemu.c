@@ -355,7 +355,7 @@ static int cardemu_open(ifd_reader_t* reader, const char *device_name)
             ifd_debug(3, "ifd_device_get_parameters failed");
             return -1;
         }
-        params.serial.speed = 250000;
+        params.serial.speed = 38400;
         params.serial.bits = 8;
         params.serial.stopbits = 1;
         params.serial.parity = IFD_SERIAL_PARITY_NONE;
