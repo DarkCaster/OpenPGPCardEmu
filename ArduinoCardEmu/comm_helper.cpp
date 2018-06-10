@@ -44,17 +44,17 @@ Request Request::Invalid()
   return Request();
 }
 
-CommHelper::CommHelper(const HardwareSerial port) : serial(port) { }
+CommHelper::CommHelper(HardwareSerial * const port) : serial(port) { }
 
 void CommHelper::Init(const long speed)
 {
-  serial.begin(speed);
-  serial.setTimeout(CMD_TIMEOUT);
+  serial->begin(speed);
+  serial->setTimeout(CMD_TIMEOUT);
 }
 
 void CommHelper::Deinit()
 {
-  serial.end();
+  serial->end();
 }
 
 #if STANDALONE_APP
@@ -66,8 +66,8 @@ Request CommHelper::ReceiveRequest()
   //message buffer
   uint8_t recvBuff[CMD_BUFF_SIZE];
   //read header
-  while(!serial.available()){}
-  serial.readBytes(recvBuff,1);
+  while(!serial->available()){}
+  serial->readBytes(recvBuff,1);
   //verify header
   auto remSz = (uint8_t)(*recvBuff & CMD_SIZE_MASK);
   if(remSz<CMD_MIN_REMSZ||remSz>CMD_MAX_REMSZ)
@@ -108,7 +108,7 @@ Request CommHelper::ReceiveRequest()
   auto rem=remSz;
   while(rem>0)
   {
-    rem-=static_cast<decltype(rem)>(serial.readBytes(recvBuff+CMD_HDR_SIZE+(remSz-rem),rem));
+    rem-=static_cast<decltype(rem)>(serial->readBytes(recvBuff+CMD_HDR_SIZE+(remSz-rem),rem));
     if(millis()-startTime>CMD_TIMEOUT)
     {
       LOG("CommHelper::ReceiveRequest: timeout\n");
@@ -151,6 +151,6 @@ uint8_t CommHelper::SendAnswer(const AnsType answer, const uint8_t* const payloa
   //send data
   auto finalLen=(uint8_t)(testLen+CMD_CRC_SIZE);
   for(uint8_t i=0; i<finalLen; ++i)
-    while(serial.write(*(cmdBuff+i))<1);
+    while(serial->write(*(cmdBuff+i))<1);
   return finalLen;
 }

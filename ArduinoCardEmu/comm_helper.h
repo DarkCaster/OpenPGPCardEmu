@@ -78,9 +78,9 @@ struct Request
 class CommHelper
 {
   private:
-    HardwareSerial serial;
+    HardwareSerial * const serial;
   public:
-    CommHelper(const HardwareSerial port);
+    CommHelper(HardwareSerial * const port);
     void Init(const long speed);
     void Deinit();
     Request ReceiveRequest();

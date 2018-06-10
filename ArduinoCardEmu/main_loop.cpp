@@ -27,7 +27,7 @@
 #define LED_SYNC LED_BUILTIN
 
 static int8_t status = 0;
-static CommHelper commHelper(Serial);
+static CommHelper commHelper(&Serial);
 
 void send_resync()
 {
