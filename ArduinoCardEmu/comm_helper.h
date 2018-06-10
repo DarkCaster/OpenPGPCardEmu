@@ -39,23 +39,6 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 #define ANS_OK 0xC0_u8
 #define ANS_RESYNC 0xE0_u8
 
-// payload size
-#define comm_get_payload_size_M(totalSize) ((uint8_t)(totalSize>0 ? totalSize-CMD_CRC_SIZE : totalSize))
-#define comm_get_payload_M(cmdBuffPtr) (cmdBuffPtr + CMD_HDR_SIZE)
-#define comm_get_req_mask_M(cmdBuffPtr) ((uint8_t)(*cmdBuffPtr & REQ_ALL_MASK))
-
-// return 0 - transmission error, >0 - payload size + CRC size
-uint8_t comm_header_decode(const uint8_t * const cmdBuff);
-
-// return 0 - verification error, 1 - ok
-uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize );
-
-uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, const uint8_t * const payload, const uint8_t plLen);
-
-
-
-
-
 enum class ReqType : uint8_t
 {
   Invalid = REQ_INVALID,
