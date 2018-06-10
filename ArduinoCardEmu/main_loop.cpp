@@ -82,7 +82,7 @@ void resync()
   if(status==-1)
   {
     //if header is not RESYNC, send ANS_RESYNC with 0 bytes payload, return
-    if(request.reqType==ReqType::Resync)
+    if(request.reqType!=ReqType::Resync)
     {
       send_resync();
       return;
