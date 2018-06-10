@@ -11,7 +11,7 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 #define CMD_HDR_SIZE_IS_1
 #define CMD_CRC_SIZE 1_u8
 #define CMD_BUFF_SIZE 16 //1 byte - header, up to 14 bytes - payload, 1 byte - crc8 checksum
-#define CMD_TIMEOUT 2000 //timeout for reading command payload
+#define CMD_TIMEOUT 500 //timeout for reading command payload
 
 #define CMD_SIZE_MASK 0x1F_u8
 #define CMD_MAX_REMSZ 15_u8
@@ -81,8 +81,12 @@ enum class AnsType : uint8_t
 
 struct Request
 {
+  private:
     Request();
-    Request(const uint8_t* const message);
+  public:
+    static Request Invalid();
+    //Request(const uint8_t* const message);
+    Request(const uint8_t req, const uint8_t* const payload, const uint8_t plLen);
     ReqType reqType;
     uint8_t plLen;
     uint8_t payload[CMD_MAX_PLSZ];
@@ -92,10 +96,6 @@ class CommHelper
 {
   private:
     HardwareSerial serial;
-    //uint8_t CommRecv(uint8_t * const buffer, const uint8_t len);
-    //uint8_t CommSend(const uint8_t * const buffer, const uint8_t len);
-    //uint8_t comm_verify(const uint8_t * const cmdBuff, const uint8_t cmdSize ); // return 0 - verification error, 1 - ok
-    //uint8_t comm_header_decode(const uint8_t * const cmdBuff); // return 0 - transmission error, >0 - payload size + CRC size
   public:
     CommHelper(const HardwareSerial port);
     void Init(const long speed);
