@@ -18,9 +18,8 @@
 
 #include "comm_helper.h"
 
-static uint8_t commBuffer[CMD_BUFF_SIZE];
-
 static int8_t status = 0;
+static CommHelper commHelper(Serial);
 
 #define READ_REMAINING(remLen,timeout) \
 ({\
@@ -38,57 +37,40 @@ static int8_t status = 0;
   }\
 })
 
-#if STANDALONE_APP
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
+void send_resync()
+{
+  LOG("send_resync: resync pending after serial protocol error\n");
+  commHelper.SendAnswer(AnsType::Resync,NULL,0);
+  status=-1;
+  return;
+}
 
 void resync()
 {
-  //TODO: create and send ANS_RESYNC response, status=-1
-  #define RESYNC_FAILED() \
-  ({\
-    LOG("resync: RESYNC_FAILED (sending)\n");\
-    auto msgLen=comm_message(commBuffer,ANS_RESYNC,commBuffer+CMD_HDR_SIZE,0);\
-    for(uint8_t i=0; i<msgLen; ++i) \
-      while(Serial.write(commBuffer[i])<1) {} \
-    LOG("resync: RESYNC_FAILED (sent)\n");\
-  })
   if(status>0)
     return;
   if(status==0)
     status--;
-  if(!Serial.available())
-    return;
+  //read request
+  auto request=commHelper.ReceiveRequest();
   LOG("resync in progress");
-  //read header
-  Serial.readBytes(commBuffer,1);
   //check header
-  auto remLen=comm_header_decode(commBuffer);
-  if(!remLen)
+  if(request.reqType==ReqType::Invalid)
   {
-    RESYNC_FAILED();
+    send_resync();
     return;
   }
-  auto req=comm_get_req_mask_M(commBuffer);
   if(status==-2)
   {
-    //awaiting for resync complete request
-    //if request is resync complete
-    if(req==REQ_RESYNC_COMPLETE)
+    //if request is ResyncComplete
+    if(request.reqType==ReqType::ResyncComplete)
     {
-      //read remaining data, check for timeout
-      uint8_t timeout=0;
-      READ_REMAINING(remLen,timeout);
-      //verify, if verification failed or timeout fired - send ANS_RESYNC, status==-1, return
-      if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
+      //send ANS_OK
+      if(!commHelper.SendAnswer(AnsType::Ok,NULL,0))
       {
-        RESYNC_FAILED();
+        send_resync();
         return;
       }
-      //send ANS_OK
-      auto msgLen=comm_message(commBuffer,ANS_OK,commBuffer+CMD_HDR_SIZE,0);
-      for(uint8_t i=0; i<msgLen; ++i)
-        while(Serial.write(commBuffer[i])<1) {}
       //resync complete!
       status=1;
       LOG("resync complete!");
@@ -100,41 +82,26 @@ void resync()
   if(status==-1)
   {
     //if header is not RESYNC, send ANS_RESYNC with 0 bytes payload, return
-    if(req!=REQ_RESYNC)
+    if(request.reqType==ReqType::Resync)
     {
-      RESYNC_FAILED();
+      send_resync();
       return;
     }
-    //read remaining data, check for timeout
-    uint8_t timeout=0;
-    READ_REMAINING(remLen,timeout);
-    //if timeout fired or checksum is invalid - send ANS_RESYNC with 0 bytes payload, return
-    if(timeout||!comm_verify(commBuffer,(uint8_t)(remLen+CMD_HDR_SIZE)))
+    //reply with current request's payload
+    if(!commHelper.SendAnswer(AnsType::Resync,request.payload,request.plLen))
     {
-      RESYNC_FAILED();
+      send_resync();
       return;
     }
-    //create resync answer (with checksum)
-    auto plLen=comm_get_payload_size_M(remLen);
-    auto payload=comm_get_payload_M(commBuffer);
-    //send answer to serial
-    auto msgLen=comm_message(commBuffer,ANS_RESYNC,payload,plLen);
-    for(uint8_t i=0; i<msgLen; ++i)
-      while(Serial.write(commBuffer[i])<1) {}
     status--;
   }
   else
-    //invalid status
-    RESYNC_FAILED();
+    send_resync();
 }
-
-#if STANDALONE_APP
-#pragma GCC diagnostic pop
-#endif
 
 void setup()
 {
-  Serial.begin(250000);
+  commHelper.Init(250000);
 }
 
 void loop()
