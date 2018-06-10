@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 
-class SerialDummy
+class HardwareSerial
 {
 private:
 #if BUILD_PLATFORM==WINDOWS
@@ -36,9 +36,10 @@ public:
     size_t write(int n) { return write((uint8_t)n); }
     size_t write(char *buffer, size_t length);
     size_t write(char *buffer) { return write(buffer,strlen(buffer)); }
+    void setTimeout(int /*timeout*/) {}
     operator bool() { return true; }
 };
 
-extern SerialDummy Serial;
+extern HardwareSerial Serial;
 
 #endif

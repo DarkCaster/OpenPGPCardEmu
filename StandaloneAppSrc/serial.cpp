@@ -1,11 +1,11 @@
 #include "serial.h"
 #include <cstdio>
 
-SerialDummy Serial;
+HardwareSerial Serial;
 
 #if BUILD_PLATFORM==WINDOWS
 
-void SerialDummy::begin(unsigned long baud)
+void HardwareSerial::begin(unsigned long baud)
 {
     hComm = CreateFile(COMPORTNAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (hComm == INVALID_HANDLE_VALUE)
@@ -51,12 +51,12 @@ void SerialDummy::begin(unsigned long baud)
     printf("Serial port config ok\n");
 }
 
-void SerialDummy::end()
+void HardwareSerial::end()
 {
     CloseHandle(hComm);
 }
 
-int SerialDummy::read(void)
+int HardwareSerial::read(void)
 {
     BYTE rx;
     DWORD dwBytesTransferred=0;
@@ -65,7 +65,7 @@ int SerialDummy::read(void)
     return -1;
 }
 
-size_t SerialDummy::readBytes(char *buffer, size_t length)
+size_t HardwareSerial::readBytes(char *buffer, size_t length)
 {
     if(length<=0)
         return 0;
@@ -82,7 +82,7 @@ size_t SerialDummy::readBytes(char *buffer, size_t length)
     return readCNT;
 }
 
-size_t SerialDummy::write(uint8_t data)
+size_t HardwareSerial::write(uint8_t data)
 {
     DWORD dwNumberOfBytesWritten=0;
     if(WriteFile(hComm, &data, 1, &dwNumberOfBytesWritten, 0) && dwNumberOfBytesWritten==1)
@@ -90,7 +90,7 @@ size_t SerialDummy::write(uint8_t data)
     return 0;
 }
 
-size_t SerialDummy::write(char *buffer, size_t length)
+size_t HardwareSerial::write(char *buffer, size_t length)
 {
     if(length==0)
         return 0;
@@ -106,7 +106,7 @@ size_t SerialDummy::write(char *buffer, size_t length)
     return pos;
 }
 
-int SerialDummy::available(void)
+int HardwareSerial::available(void)
 {
     COMSTAT comStat;
     DWORD   dwErrors;
