@@ -8,15 +8,23 @@
 #include <cstdio>
 #define LOG(...) ({printf(__VA_ARGS__); fflush(stdout);})
 //#define LOG(format,...) ({})
+#define SYNC_OK() ({})
+#define SYNC_ERR() ({})
+#define SYNC_LED_PREP() ({})
 
 #else
 
 #include <Arduino.h>
 #define LOG(...) ({})
+#define SYNC_OK() ({digitalWrite(LED_SYNC, HIGH);})
+#define SYNC_ERR() ({digitalWrite(LED_SYNC, LOW);})
+#define SYNC_LED_PREP() ({pinMode(LED_SYNC, OUTPUT);;})
 
 #endif
 
 #include "comm_helper.h"
+
+#define LED_SYNC LED_BUILTIN
 
 static int8_t status = 0;
 static CommHelper commHelper(Serial);
@@ -35,6 +43,7 @@ void resync()
     return;
   if(status==0)
     status--;
+  SYNC_ERR();
   //read request
   auto request=commHelper.ReceiveRequest();
   LOG("resync in progress");
@@ -60,6 +69,7 @@ void resync()
       //resync complete!
       status=1;
       LOG("resync complete!");
+      SYNC_OK();
       return;
     }
     else
@@ -89,6 +99,8 @@ void resync()
 
 void setup()
 {
+  SYNC_LED_PREP();
+  SYNC_ERR();
   commHelper.Init(250000);
 }
 
