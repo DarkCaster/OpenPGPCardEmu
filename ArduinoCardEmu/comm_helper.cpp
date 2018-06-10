@@ -208,3 +208,27 @@ Request CommHelper::ReceiveRequest()
 #pragma GCC diagnostic pop
 #endif
 
+uint8_t CommHelper::SendAnswer(const AnsType answer, const uint8_t* const payload, uint8_t plLen)
+{
+  if(plLen>CMD_MAX_PLSZ)
+    return 0;
+  //message buffer
+  uint8_t cmdBuff[CMD_BUFF_SIZE];
+  //place data to cmdBuff, payload buffer may overlap with cmdBuff
+  for(uint8_t i=0; i<plLen; ++i)
+    *(cmdBuff+CMD_HDR_SIZE+i)=*(payload+i);
+  //write header
+#ifdef CMD_HDR_SIZE_IS_1
+  *cmdBuff=(uint8_t)(((uint8_t)answer)|(plLen+CMD_CRC_SIZE));
+#else
+#error unsupporned CMD_HDR_SIZE
+#endif
+  //write crc
+  auto testLen=(uint8_t)(plLen+CMD_HDR_SIZE);
+  *(cmdBuff+testLen)=CRC8(cmdBuff,testLen);
+  //send data
+  auto finalLen=(uint8_t)(testLen+CMD_CRC_SIZE);
+  for(uint8_t i=0; i<finalLen; ++i)
+    while(serial.write(*(cmdBuff+i))<1);
+  return finalLen;
+}
