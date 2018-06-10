@@ -2,10 +2,10 @@
 #define SERIAL_H_INCLUDED
 
 #if BUILD_PLATFORM==WINDOWS
-    #define COMPORTNAME "\\\\.\\COM2"
-    #include<windows.h>
+#define COMPORTNAME "\\\\.\\COM2"
+#include<windows.h>
 #else
-    #error platform is not supported for now!
+#error platform is not supported for now!
 #endif
 
 #include <cstddef>
@@ -13,13 +13,13 @@
 
 class HardwareSerial
 {
-private:
+  private:
 #if BUILD_PLATFORM==WINDOWS
     HANDLE hComm;
     DCB dcbSerialParams = { 0 };
     COMMTIMEOUTS commTimeout = { 0 };
 #endif
-public:
+  public:
     void begin(unsigned long baud);
     void end();
     int available(void);
