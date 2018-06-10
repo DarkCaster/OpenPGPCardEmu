@@ -21,22 +21,6 @@
 static int8_t status = 0;
 static CommHelper commHelper(Serial);
 
-#define READ_REMAINING(remLen,timeout) \
-({\
-  auto startTime=millis();\
-  auto rem=remLen;\
-  while(rem>0)\
-  {\
-    rem-=static_cast<decltype(rem)>(Serial.readBytes(commBuffer+CMD_HDR_SIZE+(remLen-rem),rem));\
-    if(millis()-startTime>CMD_TIMEOUT)\
-    {\
-      LOG("READ_REMAINING: timeout\n");\
-      timeout=1;\
-      break;\
-    }\
-  }\
-})
-
 void send_resync()
 {
   LOG("send_resync: resync pending after serial protocol error\n");
@@ -57,6 +41,7 @@ void resync()
   //check header
   if(request.reqType==ReqType::Invalid)
   {
+    LOG("resync: invalid request received");
     send_resync();
     return;
   }
@@ -68,6 +53,7 @@ void resync()
       //send ANS_OK
       if(!commHelper.SendAnswer(AnsType::Ok,NULL,0))
       {
+        LOG("resync: failed to send Ok answer to ResyncComplete request");
         send_resync();
         return;
       }
@@ -84,12 +70,14 @@ void resync()
     //if header is not RESYNC, send ANS_RESYNC with 0 bytes payload, return
     if(request.reqType!=ReqType::Resync)
     {
+      LOG("resync: incorrect request type");
       send_resync();
       return;
     }
     //reply with current request's payload
     if(!commHelper.SendAnswer(AnsType::Resync,request.payload,request.plLen))
     {
+      LOG("resync: failed to send final resync-sequence");
       send_resync();
       return;
     }
