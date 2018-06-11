@@ -107,6 +107,7 @@ void loop()
       answerResult=commHelper.SendAnswer(status?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
       break;
     case ReqType::CardDeactivate:
+      //TODO: deactivate
       status=0;
       answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       break;
@@ -116,7 +117,9 @@ void loop()
       answerResult=commHelper.SendAnswer(AnsType::CardPresent,atr,1);
       break;
     case ReqType::CardRespond:
+      //TODO: card outgoing data-buffer polling and transferring with commHelper
     case ReqType::CardSend:
+      //TODO: card incoming data-buffer write
     default:
       LOG("Incorrect request type");
     case ReqType::Invalid:
