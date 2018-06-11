@@ -152,5 +152,5 @@ uint8_t CommHelper::SendAnswer(const AnsType answer, const uint8_t* const payloa
   auto finalLen=(uint8_t)(testLen+CMD_CRC_SIZE);
   for(uint8_t i=0; i<finalLen; ++i)
     while(serial->write(*(cmdBuff+i))<1);
-  return finalLen;
+  return 1;
 }
