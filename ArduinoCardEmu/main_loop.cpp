@@ -96,8 +96,40 @@ void setup()
 
 void loop()
 {
-  //TODO: read request
-  //TODO: perform action
+  //read request
+  auto request=commHelper.ReceiveRequest();
+  uint8_t answerResult=1;
+  uint8_t atr[1]={0xFF};
+  //perform action
+  switch (request.reqType)
+  {
+    case ReqType::CardStatus:
+      answerResult=commHelper.SendAnswer(status?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
+      break;
+    case ReqType::CardDeactivate:
+      status=0;
+      answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
+      break;
+    case ReqType::CardReset:
+      //TODO: reset
+      status=1;
+      answerResult=commHelper.SendAnswer(AnsType::CardPresent,atr,1);
+      break;
+    case ReqType::CardRespond:
+    case ReqType::CardSend:
+    default:
+      LOG("Incorrect request type");
+    case ReqType::Invalid:
+    case ReqType::Resync:
+    case ReqType::ResyncComplete:
+      answerResult=0;
+      break;
+  }
+  if(!answerResult)
+  {
+    resync();
+    return;
+  }
   //TODO: send response
 }
 
