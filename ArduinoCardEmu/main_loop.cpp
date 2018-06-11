@@ -31,7 +31,7 @@ static CommHelper commHelper(&Serial);
 
 void send_resync()
 {
-  LOG("send_resync: sending resync-pending notification after protocol error");
+  LOG("send_resync: sending resync-pending notification");
   commHelper.SendAnswer(AnsType::Resync,NULL,0);
   return;
 }
@@ -39,6 +39,7 @@ void send_resync()
 void resync()
 {
   LOG("Starting resync");
+  send_resync();
   uint8_t resyncState=0;
   while(true)
   {
@@ -90,16 +91,11 @@ void setup()
   SYNC_LED_PREP();
   SYNC_ERR();
   commHelper.Init(38400);
+  resync();
 }
 
 void loop()
 {
-  //try to perform resync
-  if(!status)
-  {
-    resync();
-    status=1;
-  }
   //TODO: read request
   //TODO: perform action
   //TODO: send response
