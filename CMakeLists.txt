@@ -80,6 +80,6 @@ if(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
 endif(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
 
 #emu util
-add_executable(cardemu StandaloneAppSrc/main.cpp StandaloneAppSrc/serial.cpp ArduinoCardEmu/main_loop.cpp ArduinoCardEmu/crc8.cpp ArduinoCardEmu/comm_helper.cpp)
+add_executable(cardemu StandaloneAppSrc/main.cpp StandaloneAppSrc/serial.cpp ArduinoCardEmu/main_loop.cpp ArduinoCardEmu/crc8.cpp ArduinoCardEmu/comm_helper.cpp ArduinoCardEmu/smart_card.cpp)
 ###target_link_libraries(TODO)
 install(TARGETS cardemu DESTINATION "cardemu")
