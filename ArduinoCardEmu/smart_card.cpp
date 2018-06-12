@@ -21,3 +21,13 @@ ATR::ATR()
   for(uint8_t i=0; i<len; ++i)
     atr[i]=atrVal[i];
 }
+
+SmartCard::SmartCard()
+{
+
+}
+
+ATR SmartCard::GetAtr()
+{
+  return ATR();
+}

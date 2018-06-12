@@ -3,10 +3,16 @@
 
 struct ATR
 {
+  static const uint8_t len=21;
+  uint8_t atr[len];
+  ATR();
+};
+
+class SmartCard
+{
   public:
-    static const uint8_t len=21;
-    uint8_t atr[len];
-    ATR();
+    SmartCard();
+    ATR GetAtr();
 };
 
 #endif
