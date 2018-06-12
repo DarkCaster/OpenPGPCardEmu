@@ -31,3 +31,8 @@ ATR SmartCard::GetAtr()
 {
   return ATR();
 }
+
+void SmartCard::Reset()
+{
+
+}

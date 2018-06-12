@@ -13,6 +13,7 @@ class SmartCard
   public:
     SmartCard();
     ATR GetAtr();
+    void Reset();
 };
 
 #endif

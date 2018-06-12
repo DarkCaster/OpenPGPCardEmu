@@ -23,11 +23,13 @@
 #endif
 
 #include "comm_helper.h"
+#include "smart_card.h"
 
 #define LED_SYNC LED_BUILTIN
 
 static uint8_t status = 0;
 static CommHelper commHelper(&Serial);
+static SmartCard smartCard;
 
 void send_resync()
 {
@@ -94,12 +96,30 @@ void setup()
   resync();
 }
 
+uint8_t cardReset()
+{
+  smartCard.Reset();
+  auto atr=smartCard.GetAtr();
+  uint8_t answerResult=1;
+  uint8_t rem=atr.len;
+  //TODO: encode atr length ans send it as separate answer
+  //send ATR as multiple messages
+  while(rem>0)
+  {
+    uint8_t partLen=CMD_MAX_PLSZ<rem?CMD_MAX_PLSZ:rem;
+    answerResult=answerResult & commHelper.SendAnswer(AnsType::CardPresent,(atr.atr+(atr.len-rem)),rem);
+    rem=(uint8_t)(rem-partLen);
+  }
+  //send OK
+  answerResult=answerResult & commHelper.SendAnswer(AnsType::Ok,NULL,0);
+  return answerResult;
+}
+
 void loop()
 {
   //read request
   auto request=commHelper.ReceiveRequest();
   uint8_t answerResult=1;
-  uint8_t atr[1]={0xFF};
   //perform action
   switch (request.reqType)
   {
@@ -112,9 +132,8 @@ void loop()
       answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       break;
     case ReqType::CardReset:
-      //TODO: reset
       status=1;
-      answerResult=commHelper.SendAnswer(AnsType::CardPresent,atr,1);
+      answerResult=cardReset();
       break;
     case ReqType::CardRespond:
       //TODO: card outgoing data-buffer polling and transferring with commHelper
