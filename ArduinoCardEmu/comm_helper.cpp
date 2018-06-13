@@ -79,17 +79,23 @@ Request CommHelper::ReceiveRequest()
   auto req=(uint8_t)(*recvBuff & REQ_ALL_MASK);
   switch(req)
   {
-    case REQ_CARD_STATUS:
-    case REQ_CARD_RESET:
-    case REQ_CARD_DEACTIVATE:
+    case REQ_CARD_COMMIT:
+    case REQ_CARD_READ_COMPLETE:
       if(remSz>CMD_MIN_REMSZ)
       {
         LOG("CommHelper::ReceiveRequest: invalid remaining data size for request: 0x%02X",req);
         return Request::Invalid();
       }
       break;
+    case REQ_CARD_STATUS:
+      if(remSz>CMD_MIN_REMSZ+1)
+      {
+        LOG("CommHelper::ReceiveRequest: invalid remaining data size for request: 0x%02X",req);
+        return Request::Invalid();
+      }
+      break;
     case REQ_CARD_SEND:
-    case REQ_CARD_RESPOND:
+    case REQ_CARD_READ:
       if(remSz==CMD_MIN_REMSZ)
       {
         LOG("CommHelper::ReceiveRequest: zero data size for send\respond request: 0x%02X",req);

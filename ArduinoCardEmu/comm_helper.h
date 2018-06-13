@@ -22,10 +22,10 @@ constexpr uint8_t operator "" _u8 (unsigned long long arg) noexcept
 #define REQ_ALL_MASK 0xE0_u8
 #define REQ_INVALID 0x00_u8
 #define REQ_CARD_STATUS 0x20_u8
-#define REQ_CARD_RESET 0x40_u8
-#define REQ_CARD_DEACTIVATE 0x60_u8
-#define REQ_CARD_SEND 0x80_u8
-#define REQ_CARD_RESPOND 0xA0_u8
+#define REQ_CARD_SEND 0x40_u8
+#define REQ_CARD_COMMIT 0x60_u8
+#define REQ_CARD_READ 0x80_u8
+#define REQ_CARD_READ_COMPLETE 0xA0_u8
 #define REQ_RESYNC_COMPLETE 0xC0_u8
 #define REQ_RESYNC 0xE0_u8
 
@@ -43,10 +43,10 @@ enum class ReqType : uint8_t
 {
   Invalid = REQ_INVALID,
   CardStatus = REQ_CARD_STATUS,
-  CardReset = REQ_CARD_RESET,
-  CardDeactivate = REQ_CARD_DEACTIVATE,
   CardSend = REQ_CARD_SEND,
-  CardRespond = REQ_CARD_RESPOND,
+  CardCommit = REQ_CARD_COMMIT,
+  CardRead = REQ_CARD_READ,
+  CardReadComplete = REQ_CARD_READ_COMPLETE,
   ResyncComplete = REQ_RESYNC_COMPLETE,
   Resync = REQ_RESYNC
 };

@@ -31,10 +31,8 @@ static uint8_t status = 0;
 static CommHelper commHelper(&Serial);
 static SmartCard smartCard;
 
-#define IS_COMMIT_PENDING (status&0x02_u8)
-#define SET_COMMIT_PENDING(pending) ({status = pending ? status|0x02_u8 : status&0x01_u8;})
 #define IS_CARD_PRESENT (status&0x01_u8)
-#define SET_CARD_STATUS(present) ({status = present ? status|0x01_u8 : status&0x02_u8;})
+#define SET_CARD_STATUS(present) ({status = present ? status|0x01_u8 : status&0xFE_u8;})
 
 void send_resync()
 {
@@ -101,6 +99,7 @@ void setup()
   resync();
 }
 
+//TODO
 uint8_t cardReset()
 {
   smartCard.Reset();
@@ -129,21 +128,39 @@ void loop()
   switch (request.reqType)
   {
     case ReqType::CardStatus:
+      //TODO: detect action: status query, card reset or deactivate
+      //TODO: perform action
+      //SET_CARD_STATUS(0);
+      //SET_CARD_STATUS(1);
+      //return answer
       answerResult=commHelper.SendAnswer(IS_CARD_PRESENT?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
       break;
-    case ReqType::CardDeactivate:
-      //TODO: deactivate
-      SET_CARD_STATUS(0);
+    case ReqType::CardCommit:
+      smartCard.inBuffer.WriteCommit();
+      //may take a LONG TIME while performing requested operation
+      smartCard.Commit();
+      //send Ok answer
       answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       break;
-    case ReqType::CardReset:
-      SET_CARD_STATUS(1);
-      answerResult=cardReset();
+    case ReqType::CardReadComplete:
+      //trim data from buffer that was succsesfully read before
+      smartCard.outBuffer.ReadTrim();
+      //send Ok answer
+      answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       break;
-    case ReqType::CardRespond:
-      //TODO: card outgoing data-buffer polling and transferring with commHelper
+    case ReqType::CardRead:
+      //rewind outgoing buffer in order to recover from previous read-error (if any)
+      smartCard.outBuffer.ReadRewind();
+      //TODO: get outgoing-buffer data-size and compare it with requested data-size
+      //TODO: read data from buffer and send it
+      //send EOD
+      answerResult=commHelper.SendAnswer(AnsType::CardEOD,NULL,0);
+      break;
     case ReqType::CardSend:
-      //TODO: card incoming data-buffer write
+      //TODO: write incoming data to card's inBuffer
+      //send Ok answer
+      answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
+      break;
     default:
       LOG("Incorrect request type");
     case ReqType::Invalid:
@@ -154,10 +171,10 @@ void loop()
   }
   if(!answerResult)
   {
+    smartCard.inBuffer.WriteRewind(); // to recover from possible write-error
     resync();
     return;
   }
-  //TODO: send response
 }
 
 

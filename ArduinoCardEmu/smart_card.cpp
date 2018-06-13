@@ -24,7 +24,7 @@ ATR::ATR()
 
 SmartCard::SmartCard()
 {
-
+  //initialize data buffer
 }
 
 ATR SmartCard::GetAtr()
@@ -33,6 +33,11 @@ ATR SmartCard::GetAtr()
 }
 
 void SmartCard::Reset()
+{
+
+}
+
+void SmartCard::Commit()
 {
 
 }
