@@ -31,6 +31,11 @@ static uint8_t status = 0;
 static CommHelper commHelper(&Serial);
 static SmartCard smartCard;
 
+#define IS_COMMIT_PENDING (status&0x02_u8)
+#define SET_COMMIT_PENDING(pending) ({status = pending ? status|0x02_u8 : status&0x01_u8;})
+#define IS_CARD_PRESENT (status&0x01_u8)
+#define SET_CARD_STATUS(present) ({status = present ? status|0x01_u8 : status&0x02_u8;})
+
 void send_resync()
 {
   LOG("send_resync: sending resync-pending notification");
@@ -124,15 +129,15 @@ void loop()
   switch (request.reqType)
   {
     case ReqType::CardStatus:
-      answerResult=commHelper.SendAnswer(status?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
+      answerResult=commHelper.SendAnswer(IS_CARD_PRESENT?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
       break;
     case ReqType::CardDeactivate:
       //TODO: deactivate
-      status=0;
+      SET_CARD_STATUS(0);
       answerResult=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       break;
     case ReqType::CardReset:
-      status=1;
+      SET_CARD_STATUS(1);
       answerResult=cardReset();
       break;
     case ReqType::CardRespond:
