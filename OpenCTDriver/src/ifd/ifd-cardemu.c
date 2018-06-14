@@ -3,10 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
-#include <sys/ioctl.h>
 #include <termios.h>
-#include <sys/poll.h>
-
 
 static struct ifd_driver_ops cardemu_driver = { 0 };
 
@@ -61,9 +58,10 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 #define CMD_CRC_SIZE_IS_1
 #define CMD_BUFF_SIZE 16
 #define CMD_TIMEOUT 500
+#define COMMIT_TIMEOUT 10000
 #define MAX_RESYNC_TRIES 10
 #define MAX_CMD_TRIES 3
-#define MAX_RESYNC_GARBAGE 32
+#define MAX_RESYNC_GARBAGE 4096
 
 #define CMD_SIZE_MASK 0x1F
 #define CMD_MAX_REMSZ 15
@@ -73,10 +71,10 @@ static unsigned char CRC8(const uint8_t *source, uint8_t len)
 // requests (masks)
 #define REQ_ALL_MASK 0xE0
 #define REQ_CARD_STATUS 0x20
-#define REQ_CARD_RESET 0x40
-#define REQ_CARD_DEACTIVATE 0x60
-#define REQ_CARD_SEND 0x80
-#define REQ_CARD_RESPOND 0xA0
+#define REQ_CARD_SEND 0x40
+#define REQ_CARD_COMMIT 0x60
+#define REQ_CARD_READ 0x80
+#define REQ_CARD_READ_COMPLETE 0xA0
 #define REQ_RESYNC_COMPLETE 0xC0
 #define REQ_RESYNC 0xE0
 
@@ -166,12 +164,12 @@ static uint8_t comm_message(uint8_t * const cmdBuff, const uint8_t cmdMask, cons
 }
 
 // 0 - timeout, or other error, >0 - actual bytes read
-static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const uint8_t len)
+static uint8_t comm_recv(ifd_device_t * const dev, uint8_t * const buffer, const uint8_t len, const uint16_t timeout)
 {
     uint8_t i;
     for (i = 0; i < len; i++)
     {
-        int n = ifd_device_recv(dev, buffer+i, 1, CMD_TIMEOUT);
+        int n = ifd_device_recv(dev, buffer+i, 1, timeout);
         if (n == IFD_ERROR_TIMEOUT)
             break;
         if (n == -1)
@@ -192,9 +190,9 @@ static uint8_t comm_send(ifd_device_t * const dev, const uint8_t * const buffer,
 }
 
 // 0 - timeout or error, >0 - message length
-static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffer)
+static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffer, const uint16_t timeout)
 {
-    if(!comm_recv(dev,buffer,CMD_HDR_SIZE))
+    if(!comm_recv(dev,buffer,CMD_HDR_SIZE,timeout))
     {
         ifd_debug(3, "failed to read header");
         return 0;
@@ -208,7 +206,7 @@ static uint8_t comm_recv_message(ifd_device_t * const dev, uint8_t * const buffe
     uint8_t rem=remLen;
     while(rem>0)
     {
-        uint8_t dr=comm_recv(dev,buffer+CMD_HDR_SIZE+(remLen-rem),rem);
+        uint8_t dr=comm_recv(dev,buffer+CMD_HDR_SIZE+(remLen-rem),rem,timeout);
         if(!dr)
             break;
         rem-=dr;
@@ -250,7 +248,7 @@ uint8_t resync(ifd_device_t * const dev)
         //read data until timeout
         int g;
         for(g=0; g<MAX_RESYNC_GARBAGE; ++g)
-            if(!comm_recv(dev,resyncBuff,1))
+            if(!comm_recv(dev,resyncBuff,1,CMD_TIMEOUT))
                 break;
         if(g>=MAX_RESYNC_GARBAGE)
         {
@@ -265,7 +263,7 @@ uint8_t resync(ifd_device_t * const dev)
             continue;
         }
         //read empty resync response
-        msgLen=comm_recv_message(dev,resyncBuff);
+        msgLen=comm_recv_message(dev,resyncBuff,CMD_TIMEOUT);
         if(msgLen!=CMD_CRC_SIZE+CMD_HDR_SIZE)
         {
             ifd_debug(3, "invalid response (2,MSGLEN)");
@@ -288,7 +286,7 @@ uint8_t resync(ifd_device_t * const dev)
         }
         //read back resync-answer with control sequence
         uint8_t ansBuff[CMD_BUFF_SIZE];
-        msgLen=comm_recv_message(dev,ansBuff);
+        msgLen=comm_recv_message(dev,ansBuff,CMD_TIMEOUT);
         if(msgLen!=CMD_MAX_REMSZ+CMD_HDR_SIZE)
         {
             ifd_debug(3, "invalid response (3,MSGLEN)");
@@ -316,7 +314,7 @@ uint8_t resync(ifd_device_t * const dev)
             continue;
         }
         //receive confirmation
-        msgLen=comm_recv_message(dev,resyncBuff);
+        msgLen=comm_recv_message(dev,resyncBuff,CMD_TIMEOUT);
         if(msgLen!=CMD_HDR_SIZE+CMD_CRC_SIZE)
         {
             ifd_debug(3, "invalid response (4,MSGLEN)");
@@ -409,7 +407,7 @@ static int cardemu_card_status(ifd_reader_t * reader, int slot, int *status)
         if(comm_send(dev,buff,msgLen)!=msgLen)
             RUN_RESYNC_AND_RETRY();
         //receive answer, run resync in case of error
-        if(!comm_recv_message(dev,buff))
+        if(!comm_recv_message(dev,buff,CMD_TIMEOUT))
             RUN_RESYNC_AND_RETRY();
         //check answer, run resync in case of wrong answer
         if(comm_get_ans_mask(buff)!=ANS_CARD_ABSENT && comm_get_ans_mask(buff)!=ANS_CARD_PRESENT)
@@ -431,15 +429,17 @@ static int cardemu_deactivate(ifd_reader_t * reader)
     uint8_t buff[CMD_BUFF_SIZE];
     for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
-        //send REQ_CARD_DEACTIVATE
-        uint8_t msgLen=comm_message(buff,REQ_CARD_DEACTIVATE,buff+CMD_HDR_SIZE,0);
+        //write new status
+        *(buff+CMD_HDR_SIZE)=0;
+        //send REQ_CARD_STATUS
+        uint8_t msgLen=comm_message(buff,REQ_CARD_STATUS,buff+CMD_HDR_SIZE,1);
         if(comm_send(dev,buff,msgLen)!=msgLen)
             RUN_RESYNC_AND_RETRY();
         //receive answer, run resync in case of error
-        if(!comm_recv_message(dev,buff))
+        if(!comm_recv_message(dev,buff,CMD_TIMEOUT))
             RUN_RESYNC_AND_RETRY();
         //check answer, run resync in case of wrong answer
-        if(comm_get_ans_mask(buff)!=ANS_OK)
+        if(comm_get_ans_mask(buff)!=ANS_CARD_ABSENT)
             RUN_RESYNC_AND_RETRY();
         ifd_debug(3, "done");
         return 0;
@@ -461,16 +461,21 @@ static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t 
     uint8_t buff[CMD_BUFF_SIZE];
     for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
-        //send REQ_CARD_RESET
-        uint8_t msgLen=comm_message(buff,REQ_CARD_RESET,buff+CMD_HDR_SIZE,0);
+        //write new status
+        *(buff+CMD_HDR_SIZE)=1;
+        //send REQ_CARD_STATUS
+        uint8_t msgLen=comm_message(buff,REQ_CARD_STATUS,buff+CMD_HDR_SIZE,1);
         if(comm_send(dev,buff,msgLen)!=msgLen)
             RUN_RESYNC_AND_RETRY();
         //receive answer, run resync in case of error
-        if(!comm_recv_message(dev,buff))
+        if(!comm_recv_message(dev,buff,CMD_TIMEOUT))
             RUN_RESYNC_AND_RETRY();
         //check answer, run resync in case of wrong answer
         if(comm_get_ans_mask(buff)!=ANS_CARD_PRESENT)
             RUN_RESYNC_AND_RETRY();
+        //TODO: decode atr-length
+        //TODO: reserve space for incoming atr
+        //TODO: read atr-part
         //copy atr from answer
         uint8_t* pl=comm_get_payload(buff);
         uint8_t plLen=comm_calc_payload_size(comm_get_remsize(buff));
@@ -498,7 +503,7 @@ static int cardemu_activate(ifd_reader_t* reader)
     return 0;
 }
 
-#define RUN_RESYNC_AND_RETRY_2() { if (resync(dev)) { error=1; continue; } else { error=2; break; } }
+#define RUN_RESYNC_AND_RETRY_2() { if (resync(dev)) { error=1; break; } else { error=2; break; } }
 
 static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned char *buffer, size_t len)
 {
@@ -509,34 +514,66 @@ static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned c
         ct_error("cardemu: device is not defined!");
         return -1;
     }
+    if(len>0xFFFF)
+    {
+        ct_error("cardemu: trying to send too big package!");
+        return -1;
+    }
     ifd_debug(3, "data:%s", ct_hexdump(buffer, len));
     uint8_t sendBuffer[CMD_BUFF_SIZE];
-    while(len>0)
+    //send data
+    int tr=0;
+    for(tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
-        uint8_t pkgLen=CMD_MAX_PLSZ>len?(uint8_t)len:CMD_MAX_PLSZ;
         uint8_t error=0;
-        for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
+        while(len>0)
         {
+            uint8_t pkgLen=CMD_MAX_PLSZ>len?(uint8_t)len:CMD_MAX_PLSZ;
             //send REQ_CARD_SEND
             uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_SEND,buffer,pkgLen);
             if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
                 RUN_RESYNC_AND_RETRY_2();
             //receive answer, run resync in case of error
-            if(!comm_recv_message(dev,sendBuffer))
+            if(!comm_recv_message(dev,sendBuffer,CMD_TIMEOUT))
                 RUN_RESYNC_AND_RETRY_2();
             //check answer, run resync in case of wrong answer
             if(comm_get_ans_mask(sendBuffer)!=ANS_OK)
                 RUN_RESYNC_AND_RETRY_2();
-            error=0;
-            break;
+            len-=pkgLen;
+            buffer+=pkgLen;
         }
-        if(error)
+        if(error==1)
+            continue;
+        if(error==2)
         {
-            ct_error("cardemu: cardemu_send failed!");
+            ct_error("cardemu: cardemu_send failed (1)!");
             return -1;
         }
-        len-=pkgLen;
-        buffer+=pkgLen;
+        break;
+    }
+    if(tr==MAX_CMD_TRIES)
+    {
+        ct_error("cardemu: cardemu_send failed (2)!");
+        return -1;
+    }
+    //send commit request
+    for(tr=0; tr<MAX_CMD_TRIES; ++tr)
+    {
+        uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_COMMIT,sendBuffer+CMD_HDR_SIZE,0);
+        if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
+            RUN_RESYNC_AND_RETRY();
+        //receive answer, run resync in case of error
+        if(!comm_recv_message(dev,sendBuffer,COMMIT_TIMEOUT))
+            RUN_RESYNC_AND_RETRY();
+        //check answer, run resync in case of wrong answer
+        if(comm_get_ans_mask(sendBuffer)!=ANS_OK)
+            RUN_RESYNC_AND_RETRY();
+        break;
+    }
+    if(tr==MAX_CMD_TRIES)
+    {
+        ct_error("cardemu: cardemu_send failed (3)!");
+        return -1;
     }
     ifd_debug(3, "done");
     return 0;
@@ -547,8 +584,6 @@ static void encode_uint16_t(uint8_t *buffer, uint16_t value)
     *(buffer)=(uint8_t)(value&0xFF);
     *(buffer+1)=(uint8_t)((value>>8)&0xFF);
 }
-
-#define RUN_RESYNC_AND_RETRY_3() { if (resync(dev)) { error=1; break; } else { error=2; break; } }
 
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout)
 {
@@ -561,26 +596,28 @@ static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *b
     ifd_device_t* dev = reader->device;
     uint8_t sendBuffer[CMD_BUFF_SIZE];
     //send data-read-request with length
-    for(int tr=0; tr<MAX_CMD_TRIES; ++tr)
+    size_t dr=0;
+    int tr=0;
+    for(tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
         //encode length
         encode_uint16_t(sendBuffer+CMD_HDR_SIZE,len);
         //send REQ_CARD_RESPOND
-        uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_RESPOND,sendBuffer+CMD_HDR_SIZE,2);
+        uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_READ,sendBuffer+CMD_HDR_SIZE,2);
         if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
             RUN_RESYNC_AND_RETRY();
-        size_t dr=0;
         uint8_t* targetBuffer=buffer;
         uint8_t error=0;
+        dr=0;
         while(dr<=len)
         {
             //receive message with data
-            if(!comm_recv_message(dev,sendBuffer))
-                RUN_RESYNC_AND_RETRY_3();
+            if(!comm_recv_message(dev,sendBuffer,CMD_TIMEOUT))
+                RUN_RESYNC_AND_RETRY_2();
             if(comm_get_ans_mask(sendBuffer)!=ANS_CARD_DATA || comm_get_ans_mask(sendBuffer)!=ANS_CARD_EOD)
-                RUN_RESYNC_AND_RETRY_3();
+                RUN_RESYNC_AND_RETRY_2();
             if(dr==len && comm_get_ans_mask(sendBuffer)!=ANS_CARD_EOD)
-                RUN_RESYNC_AND_RETRY_3();
+                RUN_RESYNC_AND_RETRY_2();
             if(comm_get_ans_mask(sendBuffer)==ANS_CARD_EOD)
                 break;
             //comm_get_ans_mask(sendBuffer)==ANS_CARD_DATA
@@ -593,12 +630,38 @@ static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *b
         if(error==1)
             continue;
         if(error==2)
-            break;
-        ifd_debug(3, "done");
-        return dr;
+        {
+            ct_error("cardemu: cardemu_recv failed (1)!");
+            return -1;
+        }
+        break;
     }
-    ct_error("cardemu: cardemu_recv failed!");
-    return -1;
+    if(tr==MAX_CMD_TRIES)
+    {
+        ct_error("cardemu: cardemu_recv failed (2)!");
+        return -1;
+    }
+    //send read complete request
+    for(tr=0; tr<MAX_CMD_TRIES; ++tr)
+    {
+        uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_READ_COMPLETE,sendBuffer+CMD_HDR_SIZE,0);
+        if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
+            RUN_RESYNC_AND_RETRY();
+        //receive answer, run resync in case of error
+        if(!comm_recv_message(dev,sendBuffer,CMD_TIMEOUT))
+            RUN_RESYNC_AND_RETRY();
+        //check answer, run resync in case of wrong answer
+        if(comm_get_ans_mask(sendBuffer)!=ANS_OK)
+            RUN_RESYNC_AND_RETRY();
+        break;
+    }
+    if(tr==MAX_CMD_TRIES)
+    {
+        ct_error("cardemu: cardemu_recv failed (3)!");
+        return -1;
+    }
+    ifd_debug(3, "done");
+    return dr;
 }
 
 void ifd_cardemu_register(void)
