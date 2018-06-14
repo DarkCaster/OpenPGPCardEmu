@@ -503,6 +503,12 @@ static int cardemu_activate(ifd_reader_t* reader)
     return 0;
 }
 
+static void encode_uint16_t(uint8_t *buffer, uint16_t value)
+{
+    *(buffer)=(uint8_t)(value&0xFF);
+    *(buffer+1)=(uint8_t)((value>>8)&0xFF);
+}
+
 #define RUN_RESYNC_AND_RETRY_2() { if (resync(dev)) { error=1; break; } else { error=2; break; } }
 
 static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned char *buffer, size_t len)
@@ -525,12 +531,27 @@ static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned c
     int tr=0;
     for(tr=0; tr<MAX_CMD_TRIES; ++tr)
     {
+        size_t targetLen=len;
+        const uint8_t *targetBuffer=buffer;
+        //encode data length we wand to send
+        encode_uint16_t(sendBuffer+CMD_HDR_SIZE,targetLen);
+        //send it
+        uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_SEND,sendBuffer+CMD_HDR_SIZE,2);
+        if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
+            RUN_RESYNC_AND_RETRY();
+        //receive ok answer
+        if(!comm_recv_message(dev,sendBuffer,CMD_TIMEOUT))
+            RUN_RESYNC_AND_RETRY();
+        //check answer, run resync in case of wrong answer
+        if(comm_get_ans_mask(sendBuffer)!=ANS_OK)
+            RUN_RESYNC_AND_RETRY();
+        //send data
         uint8_t error=0;
-        while(len>0)
+        while(targetLen>0)
         {
-            uint8_t pkgLen=CMD_MAX_PLSZ>len?(uint8_t)len:CMD_MAX_PLSZ;
+            uint8_t pkgLen=CMD_MAX_PLSZ>targetLen?(uint8_t)targetLen:CMD_MAX_PLSZ;
             //send REQ_CARD_SEND
-            uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_SEND,buffer,pkgLen);
+            uint8_t msgLen=comm_message(sendBuffer,REQ_CARD_SEND,targetBuffer,pkgLen);
             if(comm_send(dev,sendBuffer,msgLen)!=msgLen)
                 RUN_RESYNC_AND_RETRY_2();
             //receive answer, run resync in case of error
@@ -539,8 +560,8 @@ static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned c
             //check answer, run resync in case of wrong answer
             if(comm_get_ans_mask(sendBuffer)!=ANS_OK)
                 RUN_RESYNC_AND_RETRY_2();
-            len-=pkgLen;
-            buffer+=pkgLen;
+            targetLen-=pkgLen;
+            targetBuffer+=pkgLen;
         }
         if(error==1)
             continue;
@@ -577,12 +598,6 @@ static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned c
     }
     ifd_debug(3, "done");
     return 0;
-}
-
-static void encode_uint16_t(uint8_t *buffer, uint16_t value)
-{
-    *(buffer)=(uint8_t)(value&0xFF);
-    *(buffer+1)=(uint8_t)((value>>8)&0xFF);
 }
 
 static int cardemu_recv(ifd_reader_t* reader, unsigned int dad, unsigned char *buffer, size_t len, long timeout)
