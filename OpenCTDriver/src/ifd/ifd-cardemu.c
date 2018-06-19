@@ -449,6 +449,8 @@ static int cardemu_deactivate(ifd_reader_t * reader)
     return -1;
 }
 
+#define RUN_RESYNC_AND_RETRY_2() { if (resync(dev)) { error=1; break; } else { error=2; break; } }
+
 static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t size)
 {
     ifd_debug(3, "starting");
@@ -473,18 +475,42 @@ static int cardemu_card_reset(ifd_reader_t *reader, int slot, void *atr, size_t 
         //check answer, run resync in case of wrong answer
         if(comm_get_ans_mask(buff)!=ANS_CARD_PRESENT)
             RUN_RESYNC_AND_RETRY();
-        //TODO: decode atr-length
-        //TODO: reserve space for incoming atr
-        //TODO: read atr-part
+        //decode atr-length
+        uint8_t atrLen=*(comm_get_payload(buff));
+        //reserve space for incoming atr
+        uint8_t atrBuff[atrLen];
+        //read atr until the end
+        uint8_t rem=atrLen;
+        uint8_t error=0;
+        while(rem>0)
+        {
+            //receive answer, run resync in case of error
+            if(!comm_recv_message(dev,buff,CMD_TIMEOUT))
+                RUN_RESYNC_AND_RETRY_2();
+            //check answer, run resync in case of wrong answer
+            if(comm_get_ans_mask(buff)!=ANS_CARD_PRESENT)
+                RUN_RESYNC_AND_RETRY_2();
+            uint8_t partLen=comm_calc_payload_size(comm_get_remsize(buff));
+            uint8_t* part=comm_get_payload(buff);
+            for(int i=0;i<partLen;++i)
+                *(atrBuff+atrLen-rem+i)=*(part+i);
+            rem-=partLen;
+        }
+        if(error==1)
+            continue;
+        if(error==2)
+        {
+            ct_error("cardemu: cardemu_card_reset failed!");
+            return -1;
+        }
         //copy atr from answer
-        uint8_t* pl=comm_get_payload(buff);
-        uint8_t plLen=comm_calc_payload_size(comm_get_remsize(buff));
-        ifd_debug(3, "atr received: %s", ct_hexdump(pl, plLen));
-        uint8_t atrLen=(size>plLen)?plLen:(uint8_t)size;
-        for(int i=0;i<atrLen;++i)
-            *((uint8_t*)(atr+i))=*(pl+i);
-        ifd_debug(3, "done, atr returned: %s", ct_hexdump(atr, atrLen));
-        return atrLen;
+        ifd_debug(3, "atr received: %s", ct_hexdump(atrBuff, atrLen));
+        if(size>atrLen)
+            size=atrLen;
+        for(size_t i=0;i<size;++i)
+            *((uint8_t*)(atr+i))=*(atrBuff+i);
+        ifd_debug(3, "done, atr returned: %s", ct_hexdump(atr, size));
+        return size;
     }
     ct_error("cardemu: reset failed!");
     return -1;
@@ -508,8 +534,6 @@ static void encode_uint16_t(uint8_t *buffer, uint16_t value)
     *(buffer)=(uint8_t)(value&0xFF);
     *(buffer+1)=(uint8_t)((value>>8)&0xFF);
 }
-
-#define RUN_RESYNC_AND_RETRY_2() { if (resync(dev)) { error=1; break; } else { error=2; break; } }
 
 static int cardemu_send(ifd_reader_t* reader, unsigned int dad, const unsigned char *buffer, size_t len)
 {
