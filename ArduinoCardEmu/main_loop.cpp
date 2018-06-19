@@ -100,24 +100,24 @@ void setup()
   resync();
 }
 
-//TODO
-uint8_t cardReset()
+uint8_t card_reset()
 {
   smartCard.Reset();
   auto atr=smartCard.GetAtr();
-  uint8_t answerResult=1;
-  uint8_t rem=atr.len;
-  //TODO: encode atr length ans send it as separate answer
+  //encode atr length ans send it as separate answer
+  uint8_t atrLen[1]={ atr.len };
+  if(!commHelper.SendAnswer(AnsType::CardPresent,atrLen,sizeof(atrLen)))
+    return 0;
   //send ATR as multiple messages
+  uint8_t rem=atr.len;
   while(rem>0)
   {
     uint8_t partLen=CMD_MAX_PLSZ<rem?CMD_MAX_PLSZ:rem;
-    answerResult=answerResult & commHelper.SendAnswer(AnsType::CardPresent,(atr.atr+(atr.len-rem)),rem);
+    if(!commHelper.SendAnswer(AnsType::CardPresent,(atr.atr+(atr.len-rem)),partLen))
+      return 0;
     rem=(uint8_t)(rem-partLen);
   }
-  //send OK
-  answerResult=answerResult & commHelper.SendAnswer(AnsType::Ok,NULL,0);
-  return answerResult;
+  return 1;
 }
 
 void loop()
@@ -129,12 +129,23 @@ void loop()
   switch (request.reqType)
   {
     case ReqType::CardStatus:
-      //TODO: detect action: status query, card reset or deactivate
-      //TODO: perform action
-      //SET_CARD_STATUS(0);
-      //SET_CARD_STATUS(1);
-      //return answer
-      result=commHelper.SendAnswer(IS_CARD_PRESENT?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
+      //detect action: status query, card reset or deactivate
+      // status query
+      if(request.plLen==0)
+        result=commHelper.SendAnswer(IS_CARD_PRESENT?AnsType::CardPresent:AnsType::CardAbsent,NULL,0);
+      // card deactivate
+      else if (request.payload[0]==0x00_u8)
+      {
+        SET_CARD_STATUS(0);
+        result=commHelper.SendAnswer(AnsType::CardAbsent,NULL,0);
+      }
+      // reset
+      else
+      {
+        result=card_reset();
+        if(result)
+          SET_CARD_STATUS(1);
+      }
       break;
     case ReqType::CardCommit:
       if(writePending>0)
