@@ -24,6 +24,11 @@ void DataBuffer::WriteCommit()
 
 }
 
+void DataBuffer::PutData(const uint8_t * const data, const uint16_t len)
+{
+    LOG("TODO: DataBuffer::PutData");
+}
+
 void DataBuffer::ReadTrim()
 {
 

@@ -9,6 +9,8 @@ class DataBuffer
     void WriteRewind();
     //make written data available for reading
     void WriteCommit();
+    //put data to the buffer
+    void PutData(const uint8_t * const data, const uint16_t len);
     //discard data that was read
     void ReadTrim();
     //rewind to the start

@@ -180,6 +180,7 @@ void loop()
       if(writePending>0)
       {
         //TODO: write incoming data to card's inBuffer, decrement writePending
+
         //send Ok answer
         result=commHelper.SendAnswer(AnsType::Ok,NULL,0);
       }
@@ -188,10 +189,15 @@ void loop()
         //first send-command, encodes total bytes to be written
         //rewind incoming buffer to recover from possible error
         smartCard.inBuffer.WriteRewind();
-        //TODO: decode bytes to be writen and set it to writePending var
-        writePending=1;
-        //send Ok answer
-        result=commHelper.SendAnswer(AnsType::Ok,NULL,0);
+        //decode bytes to be writen and set it to writePending var
+        if(request.plLen==2)
+        {
+          writePending=(uint16_t)(request.payload[0]|request.payload[1]<<8);
+          //send Ok answer
+          result=commHelper.SendAnswer(AnsType::Ok,NULL,0);
+        }
+        else
+          result=0;
       }
       break;
     default:
